@@ -19,6 +19,7 @@ class KeyboarizImeService : InputMethodService() {
     private val prefs by lazy { getSharedPreferences("keyboard_settings", Context.MODE_PRIVATE) }
     private val handler = Handler(Looper.getMainLooper())
     private var deleting = false
+    private var enterButton: Button? = null
     private val deleteRepeat = object : Runnable {
         override fun run() {
             if (!deleting) return
@@ -61,6 +62,7 @@ class KeyboarizImeService : InputMethodService() {
                     minWidth = 0
                     minimumWidth = 0
                     setPadding(0, 0, 0, 0)
+                    if (label == "↵") enterButton = this
 
                     if (label == "⌫") {
                         setOnClickListener { deleteOne() }
@@ -106,6 +108,20 @@ class KeyboarizImeService : InputMethodService() {
             // NEXT, DONE and ordinary Enter are all treated as newline.
             else -> "↵"
         }
+    }
+
+    private fun refreshEnterKey() {
+        enterButton?.text = enterKeyLabel()
+    }
+
+    override fun onStartInput(attribute: EditorInfo?, restarting: Boolean) {
+        super.onStartInput(attribute, restarting)
+        refreshEnterKey()
+    }
+
+    override fun onStartInputView(info: EditorInfo?, restarting: Boolean) {
+        super.onStartInputView(info, restarting)
+        refreshEnterKey()
     }
 
     private fun handleKey(key: String) {
