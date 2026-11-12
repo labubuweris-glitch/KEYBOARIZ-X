@@ -32,8 +32,9 @@ class KeyboarizImeService : InputMethodService() {
     private var deleting = false
     private var enterButton: Button? = null
 
+    // Rekam salinan selama layanan IME masih hidup, termasuk saat tampilan keyboard tertutup.
     private val clipboardListener = ClipboardManager.OnPrimaryClipChangedListener {
-        if (isInputViewShown) captureCurrentClipboard()
+        captureCurrentClipboard()
     }
 
     private val deleteRepeat = object : Runnable {
@@ -276,6 +277,8 @@ class KeyboarizImeService : InputMethodService() {
     override fun onStartInputView(info: EditorInfo?, restarting: Boolean) {
         super.onStartInputView(info, restarting)
         refreshEnterKey()
+        // Ambil salinan terbaru saat keyboard dibuka kembali.
+        captureCurrentClipboard()
     }
 
     private fun handleKey(key: String) {
