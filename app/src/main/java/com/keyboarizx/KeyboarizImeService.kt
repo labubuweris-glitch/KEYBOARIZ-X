@@ -15,6 +15,7 @@ import android.view.View
 import android.view.inputmethod.EditorInfo
 import android.widget.Button
 import android.widget.LinearLayout
+import android.widget.PopupMenu
 import android.widget.ScrollView
 import android.widget.TextView
 import org.json.JSONArray
@@ -84,11 +85,7 @@ class KeyboarizImeService : InputMethodService() {
         }
 
         if (clipboardMode) {
-            makeToolButton("CLIPBOARD", 2.2f) { }
-            makeToolButton("HAPUS", 1f) {
-                saveClipboardHistory(emptyList())
-                setInputView(createKeyboardView())
-            }
+            makeToolButton("CLIPBOARD", 3.2f) { }
             makeToolButton("✕", 0.7f) {
                 clipboardMode = false
                 setInputView(createKeyboardView())
@@ -100,7 +97,8 @@ class KeyboarizImeService : InputMethodService() {
                 orientation = LinearLayout.VERTICAL
                 setPadding(0, dp(2), 0, dp(2))
             }
-            val history = loadClipboardHistory()
+            val pinned = loadPinnedClipboard()
+            val history = pinned + loadClipboardHistory().filterNot { it in pinned }
             if (history.isEmpty()) {
                 val emptyText = TextView(this).apply {
                     text = "Belum ada teks tersimpan.\nSalin teks untuk menambahkannya ke Clipboard."
@@ -115,7 +113,8 @@ class KeyboarizImeService : InputMethodService() {
             } else {
                 history.forEach { item ->
                     val itemButton = Button(this).apply {
-                        text = if (item.length > 180) item.take(180) + "…" else item
+                        text = (if (item in pinned) "📌  " else "") +
+                            if (item.length > 180) item.take(180) + "…" else item
                         textSize = 14f
                         gravity = Gravity.START or Gravity.CENTER_VERTICAL
                         setTextColor(textColor)
@@ -128,6 +127,46 @@ class KeyboarizImeService : InputMethodService() {
                             currentInputConnection?.commitText(item, 1)
                             clipboardMode = false
                             setInputView(createKeyboardView())
+                        }
+                        setOnLongClickListener {
+                            val menu = PopupMenu(this@KeyboarizImeService, this)
+                            if (item in loadPinnedClipboard()) {
+                                menu.menu.add("Lepas sematan").setOnMenuItemClickListener {
+                                    val updatedPinned = loadPinnedClipboard().toMutableList()
+                                    updatedPinned.remove(item)
+                                    savePinnedClipboard(updatedPinned)
+                                    val updatedHistory = loadClipboardHistory().toMutableList()
+                                    updatedHistory.remove(item)
+                                    updatedHistory.add(0, item)
+                                    saveClipboardHistory(updatedHistory)
+                                    setInputView(createKeyboardView())
+                                    true
+                                }
+                            } else {
+                                menu.menu.add("Sematkan").setOnMenuItemClickListener {
+                                    val updatedPinned = loadPinnedClipboard().toMutableList()
+                                    updatedPinned.remove(item)
+                                    updatedPinned.add(0, item)
+                                    savePinnedClipboard(updatedPinned)
+                                    val updatedHistory = loadClipboardHistory().toMutableList()
+                                    updatedHistory.remove(item)
+                                    saveClipboardHistory(updatedHistory)
+                                    setInputView(createKeyboardView())
+                                    true
+                                }
+                            }
+                            menu.menu.add("Hapus").setOnMenuItemClickListener {
+                                val updatedPinned = loadPinnedClipboard().toMutableList()
+                                updatedPinned.remove(item)
+                                savePinnedClipboard(updatedPinned)
+                                val updatedHistory = loadClipboardHistory().toMutableList()
+                                updatedHistory.remove(item)
+                                saveClipboardHistory(updatedHistory)
+                                setInputView(createKeyboardView())
+                                true
+                            }
+                            menu.show()
+                            true
                         }
                     }
                     val params = LinearLayout.LayoutParams(
@@ -234,8 +273,26 @@ class KeyboarizImeService : InputMethodService() {
 
     private fun saveClipboardHistory(items: List<String>) {
         val json = JSONArray()
-        items.take(20).forEach { json.put(it) }
+        items.distinct().take(20).forEach { json.put(it) }
         prefs.edit().putString("clipboard_history", json.toString()).apply()
+    }
+
+    private fun loadPinnedClipboard(): List<String> {
+        val raw = prefs.getString("clipboard_pinned", null) ?: return emptyList()
+        return try {
+            val json = JSONArray(raw)
+            (0 until json.length()).mapNotNull { index ->
+                json.optString(index).takeIf { it.isNotBlank() }
+            }
+        } catch (_: Exception) {
+            emptyList()
+        }
+    }
+
+    private fun savePinnedClipboard(items: List<String>) {
+        val json = JSONArray()
+        items.distinct().forEach { json.put(it) }
+        prefs.edit().putString("clipboard_pinned", json.toString()).apply()
     }
 
     private fun captureCurrentClipboard() {
@@ -248,6 +305,7 @@ class KeyboarizImeService : InputMethodService() {
 
         val text = clip.getItemAt(0).coerceToText(this)?.toString()?.trim()
             ?.takeIf { it.isNotEmpty() } ?: return
+        if (text in loadPinnedClipboard()) return
         val history = loadClipboardHistory().toMutableList()
         history.remove(text)
         history.add(0, text)
