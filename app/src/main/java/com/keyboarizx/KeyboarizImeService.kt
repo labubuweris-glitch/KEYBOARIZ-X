@@ -42,11 +42,13 @@ class KeyboarizImeService : InputMethodService() {
         fun addRow(keys: List<String>, weights: List<Float> = List(keys.size) { 1f }) {
             val row = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
             keys.forEachIndexed { index, label ->
+                val displayLabel = if (label == "↵") enterKeyLabel() else label
                 val button = Button(this).apply {
                     text = when {
                         label == "⇧" && shiftState == 2 -> "⬆"
                         label == "⇧" -> "⇧"
-                        label == "⌫" || label == "?123" || label == "↵" -> label
+                        label == "⌫" || label == "?123" -> label
+                        label == "↵" -> displayLabel
                         label == "SPACE" -> "SPACE"
                         else -> if (shiftState > 0) label.uppercase() else label
                     }
@@ -72,9 +74,7 @@ class KeyboarizImeService : InputMethodService() {
                         }
                         setOnTouchListener { _, event ->
                             if (event.action == MotionEvent.ACTION_UP ||
-                                event.action == MotionEvent.ACTION_CANCEL) {
-                                stopDeleting()
-                            }
+                                event.action == MotionEvent.ACTION_CANCEL) stopDeleting()
                             false
                         }
                     } else {
@@ -97,6 +97,17 @@ class KeyboarizImeService : InputMethodService() {
         return root
     }
 
+    private fun enterKeyLabel(): String {
+        return when (currentInputEditorInfo?.imeOptions?.and(EditorInfo.IME_MASK_ACTION)) {
+            EditorInfo.IME_ACTION_SEARCH -> "Cari"
+            EditorInfo.IME_ACTION_GO -> "Go"
+            EditorInfo.IME_ACTION_SEND -> "Kirim"
+            EditorInfo.IME_ACTION_NEXT -> "→"
+            EditorInfo.IME_ACTION_DONE -> "Selesai"
+            else -> "↵"
+        }
+    }
+
     private fun handleKey(key: String) {
         val connection = currentInputConnection ?: return
         when (key) {
@@ -110,17 +121,19 @@ class KeyboarizImeService : InputMethodService() {
             }
             "↵" -> {
                 val info = currentInputEditorInfo
-                val isMultiline = info != null &&
-                    (info.inputType and InputType.TYPE_TEXT_FLAG_MULTI_LINE) != 0
                 val action = info?.imeOptions?.and(EditorInfo.IME_MASK_ACTION)
                     ?: EditorInfo.IME_ACTION_NONE
 
-                // Multiline fields must receive a newline, even if they advertise an action.
-                if (!isMultiline && action != EditorInfo.IME_ACTION_NONE &&
+                // Honor explicit editor actions (Search, Go, Send, Next, Done) first.
+                // Only insert a newline when the field is multiline and has no explicit action.
+                if (action != EditorInfo.IME_ACTION_NONE &&
                     action != EditorInfo.IME_ACTION_UNSPECIFIED) {
                     connection.performEditorAction(action)
                 } else {
-                    connection.commitText("\n", 1)
+                    val isMultiline = info != null &&
+                        (info.inputType and InputType.TYPE_TEXT_FLAG_MULTI_LINE) != 0
+                    if (isMultiline) connection.commitText("\n", 1)
+                    else connection.performEditorAction(EditorInfo.IME_ACTION_UNSPECIFIED)
                 }
             }
             "SPACE" -> connection.commitText(" ", 1)
