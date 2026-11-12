@@ -16,6 +16,7 @@ import android.widget.LinearLayout
 class KeyboarizImeService : InputMethodService() {
     // 0 = lowercase, 1 = one-shot shift, 2 = caps lock
     private var shiftState = 0
+    private var numberMode = false
     private val prefs by lazy { getSharedPreferences("keyboard_settings", Context.MODE_PRIVATE) }
     private val handler = Handler(Looper.getMainLooper())
     private var deleting = false
@@ -90,12 +91,22 @@ class KeyboarizImeService : InputMethodService() {
             root.addView(row)
         }
 
-        addRow(listOf("q","w","e","r","t","y","u","i","o","p"))
-        addRow(listOf("a","s","d","f","g","h","j","k","l"))
-        addRow(listOf("⇧","z","x","c","v","b","n","m","⌫"),
-            listOf(1.3f,1f,1f,1f,1f,1f,1f,1f,1.3f))
-        addRow(listOf("?123", ",", "SPACE", ".", "↵"),
-            listOf(1.4f,0.8f,3.8f,0.8f,1.4f))
+        if (numberMode) {
+            // Gboard-inspired number and symbol page.
+            addRow(listOf("1","2","3","4","5","6","7","8","9","0"))
+            addRow(listOf("@","#","$","%","&","-","+","(",")","/"))
+            addRow(listOf("*","\\"","'",":",";","!","?","_","⌫"),
+                listOf(1f,1f,1f,1f,1f,1f,1f,1f,1.4f))
+            addRow(listOf("ABC", ",", "SPACE", ".", "↵"),
+                listOf(1.4f,0.8f,3.8f,0.8f,1.4f))
+        } else {
+            addRow(listOf("q","w","e","r","t","y","u","i","o","p"))
+            addRow(listOf("a","s","d","f","g","h","j","k","l"))
+            addRow(listOf("⇧","z","x","c","v","b","n","m","⌫"),
+                listOf(1.3f,1f,1f,1f,1f,1f,1f,1f,1.3f))
+            addRow(listOf("?123", ",", "SPACE", ".", "↵"),
+                listOf(1.4f,0.8f,3.8f,0.8f,1.4f))
+        }
         return root
     }
 
@@ -150,7 +161,14 @@ class KeyboarizImeService : InputMethodService() {
                 }
             }
             "SPACE" -> connection.commitText(" ", 1)
-            "?123" -> { /* Number/symbol layout will be added in the next stage. */ }
+            "?123" -> {
+                numberMode = true
+                setInputView(createKeyboardView())
+            }
+            "ABC" -> {
+                numberMode = false
+                setInputView(createKeyboardView())
+            }
             else -> {
                 connection.commitText(if (shiftState > 0) key.uppercase() else key, 1)
                 if (shiftState == 1) {
