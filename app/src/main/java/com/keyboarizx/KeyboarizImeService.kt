@@ -98,26 +98,12 @@ class KeyboarizImeService : InputMethodService() {
     }
 
     private fun enterKeyLabel(): String {
-        val info = currentInputEditorInfo
-        val action = info?.imeOptions?.and(EditorInfo.IME_MASK_ACTION)
-        val isMultiline = info != null &&
-            (info.inputType and InputType.TYPE_TEXT_FLAG_MULTI_LINE) != 0
-
-        // Multiline notes should show the newline symbol unless an explicit
-        // action such as Search, Send, Go or Next is requested.
-        if (isMultiline && action != EditorInfo.IME_ACTION_SEARCH &&
-            action != EditorInfo.IME_ACTION_GO &&
-            action != EditorInfo.IME_ACTION_SEND &&
-            action != EditorInfo.IME_ACTION_NEXT) {
-            return "↵"
-        }
-
+        val action = currentInputEditorInfo?.imeOptions?.and(EditorInfo.IME_MASK_ACTION)
         return when (action) {
             EditorInfo.IME_ACTION_SEARCH -> "Cari"
             EditorInfo.IME_ACTION_GO -> "Go"
             EditorInfo.IME_ACTION_SEND -> "Kirim"
-            EditorInfo.IME_ACTION_NEXT -> "→"
-            EditorInfo.IME_ACTION_DONE -> "Selesai"
+            // NEXT, DONE and ordinary Enter are all treated as newline.
             else -> "↵"
         }
     }
@@ -134,29 +120,17 @@ class KeyboarizImeService : InputMethodService() {
                 setInputView(createKeyboardView())
             }
             "↵" -> {
-                val info = currentInputEditorInfo
-                val action = info?.imeOptions?.and(EditorInfo.IME_MASK_ACTION)
+                val action = currentInputEditorInfo?.imeOptions
+                    ?.and(EditorInfo.IME_MASK_ACTION)
                     ?: EditorInfo.IME_ACTION_NONE
 
-                val isMultiline = info != null &&
-                    (info.inputType and InputType.TYPE_TEXT_FLAG_MULTI_LINE) != 0
-
-                // For multiline editors, DONE/NONE means insert a new line.
-                // Explicit Search, Go, Send and Next actions remain higher priority.
-                val hasExplicitAction = action == EditorInfo.IME_ACTION_SEARCH ||
-                    action == EditorInfo.IME_ACTION_GO ||
-                    action == EditorInfo.IME_ACTION_SEND ||
-                    action == EditorInfo.IME_ACTION_NEXT
-
-                if (isMultiline && !hasExplicitAction) {
-                    connection.commitText("\n", 1)
-                } else if (action != EditorInfo.IME_ACTION_NONE &&
-                    action != EditorInfo.IME_ACTION_UNSPECIFIED) {
-                    connection.performEditorAction(action)
-                } else if (isMultiline) {
-                    connection.commitText("\n", 1)
-                } else {
-                    connection.performEditorAction(EditorInfo.IME_ACTION_UNSPECIFIED)
+                // Keep only explicit Search, Go and Send actions.
+                // NEXT, DONE and all other actions insert a newline.
+                when (action) {
+                    EditorInfo.IME_ACTION_SEARCH,
+                    EditorInfo.IME_ACTION_GO,
+                    EditorInfo.IME_ACTION_SEND -> connection.performEditorAction(action)
+                    else -> connection.commitText("\n", 1)
                 }
             }
             "SPACE" -> connection.commitText(" ", 1)
