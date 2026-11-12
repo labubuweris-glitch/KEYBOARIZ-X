@@ -62,6 +62,8 @@ class KeyboarizImeService : InputMethodService() {
             setBackgroundColor(backgroundColor)
         }
 
+        val toolRow = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+
         fun makeToolButton(label: String, weight: Float, onClick: () -> Unit) {
             val button = Button(this).apply {
                 text = label
@@ -80,7 +82,6 @@ class KeyboarizImeService : InputMethodService() {
             toolRow.addView(button, params)
         }
 
-        val toolRow = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
         if (clipboardMode) {
             makeToolButton("CLIPBOARD", 2.2f) { }
             makeToolButton("HAPUS", 1f) {
