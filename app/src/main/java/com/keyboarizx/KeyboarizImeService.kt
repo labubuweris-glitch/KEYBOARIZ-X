@@ -95,7 +95,7 @@ class KeyboarizImeService : InputMethodService() {
             // Gboard-inspired number and symbol page.
             addRow(listOf("1","2","3","4","5","6","7","8","9","0"))
             addRow(listOf("@","#","$","%","&","-","+","(",")","/"))
-            addRow(listOf("*","\\"","'",":",";","!","?","_","⌫"),
+            addRow(listOf("*","\"","'",":",";","!","?","_","⌫"),
                 listOf(1f,1f,1f,1f,1f,1f,1f,1f,1.4f))
             addRow(listOf("ABC", ",", "SPACE", ".", "↵"),
                 listOf(1.4f,0.8f,3.8f,0.8f,1.4f))
