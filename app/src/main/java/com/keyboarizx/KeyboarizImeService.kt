@@ -98,7 +98,21 @@ class KeyboarizImeService : InputMethodService() {
     }
 
     private fun enterKeyLabel(): String {
-        return when (currentInputEditorInfo?.imeOptions?.and(EditorInfo.IME_MASK_ACTION)) {
+        val info = currentInputEditorInfo
+        val action = info?.imeOptions?.and(EditorInfo.IME_MASK_ACTION)
+        val isMultiline = info != null &&
+            (info.inputType and InputType.TYPE_TEXT_FLAG_MULTI_LINE) != 0
+
+        // Multiline notes should show the newline symbol unless an explicit
+        // action such as Search, Send, Go or Next is requested.
+        if (isMultiline && action != EditorInfo.IME_ACTION_SEARCH &&
+            action != EditorInfo.IME_ACTION_GO &&
+            action != EditorInfo.IME_ACTION_SEND &&
+            action != EditorInfo.IME_ACTION_NEXT) {
+            return "↵"
+        }
+
+        return when (action) {
             EditorInfo.IME_ACTION_SEARCH -> "Cari"
             EditorInfo.IME_ACTION_GO -> "Go"
             EditorInfo.IME_ACTION_SEND -> "Kirim"
@@ -124,16 +138,25 @@ class KeyboarizImeService : InputMethodService() {
                 val action = info?.imeOptions?.and(EditorInfo.IME_MASK_ACTION)
                     ?: EditorInfo.IME_ACTION_NONE
 
-                // Honor explicit editor actions (Search, Go, Send, Next, Done) first.
-                // Only insert a newline when the field is multiline and has no explicit action.
-                if (action != EditorInfo.IME_ACTION_NONE &&
+                val isMultiline = info != null &&
+                    (info.inputType and InputType.TYPE_TEXT_FLAG_MULTI_LINE) != 0
+
+                // For multiline editors, DONE/NONE means insert a new line.
+                // Explicit Search, Go, Send and Next actions remain higher priority.
+                val hasExplicitAction = action == EditorInfo.IME_ACTION_SEARCH ||
+                    action == EditorInfo.IME_ACTION_GO ||
+                    action == EditorInfo.IME_ACTION_SEND ||
+                    action == EditorInfo.IME_ACTION_NEXT
+
+                if (isMultiline && !hasExplicitAction) {
+                    connection.commitText("\n", 1)
+                } else if (action != EditorInfo.IME_ACTION_NONE &&
                     action != EditorInfo.IME_ACTION_UNSPECIFIED) {
                     connection.performEditorAction(action)
+                } else if (isMultiline) {
+                    connection.commitText("\n", 1)
                 } else {
-                    val isMultiline = info != null &&
-                        (info.inputType and InputType.TYPE_TEXT_FLAG_MULTI_LINE) != 0
-                    if (isMultiline) connection.commitText("\n", 1)
-                    else connection.performEditorAction(EditorInfo.IME_ACTION_UNSPECIFIED)
+                    connection.performEditorAction(EditorInfo.IME_ACTION_UNSPECIFIED)
                 }
             }
             "SPACE" -> connection.commitText(" ", 1)
