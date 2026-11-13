@@ -408,19 +408,19 @@ class KeyboarizImeService : InputMethodService() {
             if (symbolPage == 1) {
                 // Halaman simbol utama: angka, tanda baca, dan simbol umum.
                 addRow(listOf("1","2","3","4","5","6","7","8","9","0"))
-                addRow(listOf("@","#","$","%","&","-","+","(",")","/"))
-                addRow(listOf("=\\<","\"","'",":",";","!","?","_","⌫"),
-                    listOf(1f,1f,1f,1f,1f,1f,1f,1f,1.4f))
-                addRow(listOf("ABC", ",", "SPACE", ".", "↵"),
-                    listOf(1.4f,0.8f,3.8f,0.8f,1.4f))
+                addRow(listOf("@","#","$","_","&","-","+","(",")","/"))
+                addRow(listOf("=\\<","*","\"","'",":",";","!","?","⌫"),
+                    listOf(1.25f,1f,1f,1f,1f,1f,1f,1f,1.4f))
+                addRow(listOf("ABC", ",", "1 2 3 4", "SPACE", ".", "↵"),
+                    listOf(1.3f,0.7f,1.2f,2.8f,0.7f,1.3f))
             } else {
                 // Halaman simbol tambahan, mengikuti pola dua halaman Gboard.
                 addRow(listOf("~","`","|","•","√","π","÷","×","§","Δ"))
                 addRow(listOf("£","¢","€","¥","^","°","=","{","}","\\"))
                 addRow(listOf("=\\<","%","©","®","™","✓","[","]","⌫"),
                     listOf(1.25f,1f,1f,1f,1f,1f,1f,1f,1.4f))
-                addRow(listOf("ABC", ",", "SPACE", ".", "↵"),
-                    listOf(1.4f,0.8f,3.8f,0.8f,1.4f))
+                addRow(listOf("ABC", ",", "1 2 3 4", "SPACE", ".", "↵"),
+                    listOf(1.3f,0.7f,1.2f,2.8f,0.7f,1.3f))
             }
         } else {
             addRow(listOf("q","w","e","r","t","y","u","i","o","p"))
@@ -624,7 +624,7 @@ class KeyboarizImeService : InputMethodService() {
                 }
                 setInputView(createKeyboardView())
             }
-            "=\\<" -> {
+            "=\\<", "1 2 3 4" -> {
                 if (numberMode) {
                     symbolPage = if (symbolPage == 1) 2 else 1
                     setInputView(createKeyboardView())
