@@ -4,6 +4,8 @@ import android.inputmethodservice.InputMethodService
 import android.content.ClipDescription
 import android.content.ClipboardManager
 import android.content.Context
+import android.media.AudioAttributes
+import android.media.SoundPool
 import android.graphics.Color
 import android.graphics.Typeface
 import android.graphics.Canvas
@@ -50,6 +52,9 @@ class KeyboarizImeService : InputMethodService() {
     }
     private var deleting = false
     private var enterButton: Button? = null
+    private var keySoundPool: SoundPool? = null
+    private var keySoundId = 0
+    private var keySoundReady = false
 
     // Rekam salinan selama layanan IME masih hidup, termasuk saat tampilan keyboard tertutup.
     private val clipboardListener = ClipboardManager.OnPrimaryClipChangedListener {
@@ -67,6 +72,26 @@ class KeyboarizImeService : InputMethodService() {
     override fun onCreate() {
         super.onCreate()
         clipboardManager.addPrimaryClipChangedListener(clipboardListener)
+        keySoundPool = SoundPool.Builder()
+            .setMaxStreams(4)
+            .setAudioAttributes(
+                AudioAttributes.Builder()
+                    .setUsage(AudioAttributes.USAGE_ASSISTANCE_SONIFICATION)
+                    .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                    .build()
+            )
+            .build().also { pool ->
+                pool.setOnLoadCompleteListener { _, sampleId, status ->
+                    if (sampleId == keySoundId) keySoundReady = status == 0
+                }
+                keySoundId = pool.load(this, R.raw.suara_ketik, 1)
+            }
+    }
+
+    private fun playKeySound() {
+        if (!prefs.getBoolean("keySoundEnabled", true) || !keySoundReady) return
+        val volume = prefs.getInt("keySoundVolume", 65).coerceIn(0, 100) / 100f
+        if (volume > 0f) keySoundPool?.play(keySoundId, volume, volume, 1, 0, 1f)
     }
 
     override fun onCreateInputView(): View = createKeyboardView()
@@ -431,6 +456,7 @@ class KeyboarizImeService : InputMethodService() {
                         }
                     } else {
                         setOnClickListener {
+                            playKeySound()
                             if ((label == "1+2" || label == "1 2 3 4") && numberMode) {
                                 symbolPage = if (symbolPage == 3) 2 else 3
                                 setInputView(createKeyboardView())
@@ -770,6 +796,8 @@ class KeyboarizImeService : InputMethodService() {
     override fun onDestroy() {
         stopDeleting()
         clipboardManager.removePrimaryClipChangedListener(clipboardListener)
+        keySoundPool?.release()
+        keySoundPool = null
         super.onDestroy()
     }
 
