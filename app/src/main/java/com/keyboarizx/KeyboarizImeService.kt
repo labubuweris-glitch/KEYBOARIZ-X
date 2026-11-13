@@ -368,7 +368,12 @@ class KeyboarizImeService : InputMethodService() {
                         label == "SPACE" -> "SPACE"
                         else -> if (shiftState > 0 && !numberMode) label.uppercase() else label
                     }
-                    textSize = if (label == "SPACE") 10f else 18f
+                    textSize = when {
+                        label == "SPACE" -> 10f
+                        numberMode && symbolPage == 3 && label.length == 1 && label[0].isDigit() -> 24f
+                        numberMode && symbolPage == 3 -> 16f
+                        else -> 18f
+                    }
                     val isAccent = (label == "⇧" && shiftState > 0) || label == "↵"
                     setTextColor(if (isAccent) Color.rgb(4, 20, 29) else textColor)
                     setBackgroundColor(if (isAccent) accentColor else keyColor)
@@ -405,7 +410,8 @@ class KeyboarizImeService : InputMethodService() {
                         }
                     }
                 }
-                val params = LinearLayout.LayoutParams(0, dp(48), weights[index])
+                val keyHeight = if (numberMode && symbolPage == 3) 54 else 48
+                val params = LinearLayout.LayoutParams(0, dp(keyHeight), weights[index])
                 params.setMargins(dp(2), dp(2), dp(2), dp(2))
                 row.addView(button, params)
             }
@@ -430,14 +436,13 @@ class KeyboarizImeService : InputMethodService() {
                 addRow(listOf("ABC", ",", "1+2", "SPACE", ".", "↵"),
                     listOf(1.3f,0.7f,1.2f,2.8f,0.7f,1.3f))
             } else {
-                // Halaman 3: keypad angka bergaya kalkulator.
-                addRow(listOf("7","8","9","÷"))
-                addRow(listOf("4","5","6","×"))
-                addRow(listOf("1","2","3","−"))
-                addRow(listOf("0","+","=","*","/"),
-                    listOf(1.5f,1f,1f,1f,1f))
-                addRow(listOf("=\\<",",","SPACE",".","⌫","ABC"),
-                    listOf(1.1f,0.65f,2.4f,0.65f,1.1f,1.1f))
+                // Halaman 3: Number Pad ala Gboard, bukan kalkulator.
+                // Tiga kolom angka besar dengan tombol fungsi di sisi kanan.
+                addRow(listOf("1","2","3","%"), listOf(1.2f,1.2f,1.2f,0.85f))
+                addRow(listOf("4","5","6","↵"), listOf(1.2f,1.2f,1.2f,0.85f))
+                addRow(listOf("7","8","9","⌫"), listOf(1.2f,1.2f,1.2f,0.85f))
+                addRow(listOf("ABC","!?#",",","0","=",".","↵"),
+                    listOf(1.15f,1.0f,0.65f,1.15f,0.85f,0.65f,1.15f))
             }
         } else {
             addRow(listOf("q","w","e","r","t","y","u","i","o","p"))
@@ -658,6 +663,11 @@ class KeyboarizImeService : InputMethodService() {
                     symbolPage = 3
                     setInputView(createKeyboardView())
                 }
+            }
+            "!?#" -> {
+                numberMode = true
+                symbolPage = 2
+                setInputView(createKeyboardView())
             }
             "ABC" -> {
                 numberMode = false
