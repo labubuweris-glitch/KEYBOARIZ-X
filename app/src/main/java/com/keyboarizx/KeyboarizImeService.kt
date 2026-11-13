@@ -12,15 +12,13 @@ import android.text.InputType
 import android.view.Gravity
 import android.view.MotionEvent
 import android.view.View
-import android.view.WindowManager
 import android.view.inputmethod.EditorInfo
 import android.widget.Button
-import android.widget.EditText
-import android.app.AlertDialog
 import android.widget.LinearLayout
 import android.widget.PopupMenu
 import android.widget.ScrollView
 import android.widget.TextView
+import android.widget.Toast
 import org.json.JSONArray
 import org.json.JSONObject
 
@@ -235,17 +233,9 @@ class KeyboarizImeService : InputMethodService() {
                                     setInputView(createKeyboardView())
                                 }
                                 setOnLongClickListener {
-                                    val menu = PopupMenu(this@KeyboarizImeService, this)
-                                    menu.menu.add("Ubah nama").setOnMenuItemClickListener {
-                                        showRenameCategoryDialog(name)
-                                        true
-                                    }
-                                    menu.menu.add("Hapus kategori").setOnMenuItemClickListener {
-                                        deletePinCategory(name)
-                                        setInputView(createKeyboardView())
-                                        true
-                                    }
-                                    menu.show()
+                                    Toast.makeText(this@KeyboarizImeService,
+                                        "Kelola kategori melalui aplikasi KEYBOARIZ X",
+                                        Toast.LENGTH_SHORT).show()
                                     true
                                 }
                             }
@@ -256,19 +246,7 @@ class KeyboarizImeService : InputMethodService() {
                             itemsLayout.addView(folderButton, lp)
                         }
                     }
-                    val addCategory = Button(this).apply {
-                        text = "+ Buat kategori"
-                        textSize = 14f
-                        setTextColor(if (true) Color.rgb(4, 20, 29) else textColor)
-                        setBackgroundColor(accentColor)
-                        isAllCaps = false
-                        setOnClickListener { showCreateCategoryDialog() }
-                    }
-                    val lp = LinearLayout.LayoutParams(
-                        LinearLayout.LayoutParams.MATCH_PARENT, dp(44)
-                    )
-                    lp.setMargins(dp(2), dp(4), dp(2), dp(2))
-                    itemsLayout.addView(addCategory, lp)
+                    addEmpty("Buat dan atur kategori melalui aplikasi KEYBOARIZ X.\nBuka aplikasi lalu pilih Kelola Kategori Sematan.")
                 } else {
                     val back = Button(this).apply {
                         text = "‹  KATEGORI"
@@ -494,101 +472,41 @@ class KeyboarizImeService : InputMethodService() {
     }
 
     private fun showPinCategoryDialog(item: String) {
-        val names = loadPinCategories().keys.toMutableList()
-        val options = names + "＋ Buat kategori baru"
-        val dialog = AlertDialog.Builder(this)
-            .setTitle("Pilih kategori")
-            .setItems(options.toTypedArray()) { _, which ->
-                if (which == options.lastIndex) {
-                    showCreateCategoryDialog(item)
-                } else {
-                    addPinnedItem(item, names[which])
+        val names = loadPinCategories().keys.toList()
+        if (names.isEmpty()) {
+            Toast.makeText(this, "Buat kategori melalui aplikasi KEYBOARIZ X terlebih dahulu", Toast.LENGTH_LONG).show()
+            return
+        }
+        val anchor = currentInputView ?: return
+        PopupMenu(this, anchor).apply {
+            names.forEach { name ->
+                menu.add(name).setOnMenuItemClickListener {
+                    addPinnedItem(item, name)
                     setInputView(createKeyboardView())
+                    true
                 }
             }
-            .setNegativeButton("Batal", null)
-            .create()
-        showImeDialog(dialog)
-    }
-
-    private fun showCreateCategoryDialog(itemToPin: String? = null) {
-        val input = EditText(this).apply { hint = "Nama kategori" }
-        val dialog = AlertDialog.Builder(this)
-            .setTitle("Buat kategori")
-            .setView(input)
-            .setPositiveButton("Simpan") { _, _ ->
-                val name = input.text.toString().trim()
-                if (name.isNotEmpty()) {
-                    val categories = loadPinCategories().toMutableMap()
-                    val existingName = categories.keys.firstOrNull { it.equals(name, true) }
-                    val targetName = existingName ?: name
-                    if (existingName == null) {
-                        categories[targetName] = emptyList()
-                        savePinCategories(categories)
-                    }
-                    if (itemToPin != null) addPinnedItem(itemToPin, targetName)
-                    setInputView(createKeyboardView())
-                }
-            }
-            .setNegativeButton("Batal", null)
-            .create()
-        showImeDialog(dialog)
+            show()
+        }
     }
 
     private fun showMoveCategoryDialog(item: String, currentCategory: String?) {
         val names = loadPinCategories().keys.filter { it != currentCategory }
         if (names.isEmpty()) {
-            showCreateCategoryDialog(item)
+            Toast.makeText(this, "Buat kategori lain melalui aplikasi KEYBOARIZ X", Toast.LENGTH_SHORT).show()
             return
         }
-        val dialog = AlertDialog.Builder(this)
-            .setTitle("Pindahkan ke kategori")
-            .setItems(names.toTypedArray()) { _, which ->
-                addPinnedItem(item, names[which])
-                setInputView(createKeyboardView())
-            }
-            .setNegativeButton("Batal", null)
-            .create()
-        showImeDialog(dialog)
-    }
-
-    private fun showRenameCategoryDialog(oldName: String) {
-        val input = EditText(this).apply { setText(oldName) }
-        val dialog = AlertDialog.Builder(this)
-            .setTitle("Ubah nama kategori")
-            .setView(input)
-            .setPositiveButton("Simpan") { _, _ ->
-                val newName = input.text.toString().trim()
-                if (newName.isNotEmpty() && newName != oldName) {
-                    val categories = loadPinCategories().toMutableMap()
-                    if (categories.keys.none { it.equals(newName, true) }) {
-                        val items = categories.remove(oldName).orEmpty()
-                        categories[newName] = items
-                        savePinCategories(categories)
-                    }
+        val anchor = currentInputView ?: return
+        PopupMenu(this, anchor).apply {
+            names.forEach { name ->
+                menu.add(name).setOnMenuItemClickListener {
+                    addPinnedItem(item, name)
                     setInputView(createKeyboardView())
+                    true
                 }
             }
-            .setNegativeButton("Batal", null)
-            .create()
-        showImeDialog(dialog)
-    }
-
-    // Attach category dialogs to the IME window instead of a normal app window.
-    private fun showImeDialog(dialog: AlertDialog) {
-        dialog.window?.setType(WindowManager.LayoutParams.TYPE_APPLICATION_ATTACHED_DIALOG)
-        dialog.show()
-    }
-
-    private fun deletePinCategory(name: String) {
-        val categories = loadPinCategories().toMutableMap()
-        val removed = categories.remove(name).orEmpty()
-        if (removed.isNotEmpty()) {
-            categories["Belum Dikategorikan"] =
-                (categories["Belum Dikategorikan"].orEmpty() + removed).distinct()
+            show()
         }
-        savePinCategories(categories)
-        selectedPinCategory = null
     }
 
     private fun captureCurrentClipboard() {
