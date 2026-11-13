@@ -654,8 +654,9 @@ class KeyboarizImeService : InputMethodService() {
         connection.beginBatchEdit()
         try {
             connection.commitText(replacement, 1)
-            if (selectionStart >= 0 && selectionEnd >= selectionStart) {
-                connection.setSelection(selectionStart, selectionStart + replacement.length)
+            if (selectionStart >= 0 && selectionEnd >= 0) {
+                val selectionAnchor = minOf(selectionStart, selectionEnd)
+                connection.setSelection(selectionAnchor, selectionAnchor + replacement.length)
             }
         } finally {
             connection.endBatchEdit()
