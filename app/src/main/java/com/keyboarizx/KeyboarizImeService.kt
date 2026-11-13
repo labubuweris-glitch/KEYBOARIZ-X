@@ -29,6 +29,8 @@ class KeyboarizImeService : InputMethodService() {
     private var clipboardMode = false
     private var clipboardPage = 0 // 0 = riwayat, 1 = sematan
     private var selectedPinCategory: String? = null
+    private var pendingPinItem: String? = null
+    private var pendingMoveFromCategory: String? = null
     private val prefs by lazy { getSharedPreferences("keyboard_settings", Context.MODE_PRIVATE) }
     private val handler = Handler(Looper.getMainLooper())
     private val clipboardManager by lazy {
@@ -162,7 +164,11 @@ class KeyboarizImeService : InputMethodService() {
                         val menu = PopupMenu(this@KeyboarizImeService, this)
                         if (!pinnedItem) {
                             menu.menu.add("Sematkan").setOnMenuItemClickListener {
-                                showPinCategoryDialog(item)
+                                pendingPinItem = item
+                                pendingMoveFromCategory = null
+                                selectedPinCategory = null
+                                clipboardPage = 1
+                                setInputView(createKeyboardView())
                                 true
                             }
                             menu.menu.add("Hapus").setOnMenuItemClickListener {
@@ -174,7 +180,11 @@ class KeyboarizImeService : InputMethodService() {
                             }
                         } else {
                             menu.menu.add("Pindahkan kategori").setOnMenuItemClickListener {
-                                showMoveCategoryDialog(item, category)
+                                pendingPinItem = item
+                                pendingMoveFromCategory = category
+                                selectedPinCategory = null
+                                clipboardPage = 1
+                                setInputView(createKeyboardView())
                                 true
                             }
                             menu.menu.add("Lepas sematan").setOnMenuItemClickListener {
@@ -212,14 +222,50 @@ class KeyboarizImeService : InputMethodService() {
             } else {
                 val categories = loadPinCategories()
                 val category = selectedPinCategory
-                if (category == null) {
+                val itemToPin = pendingPinItem
+                if (itemToPin != null) {
+                    addEmpty("PILIH KATEGORI")
+                    categories.filterKeys { it != pendingMoveFromCategory }.forEach { (name, entries) ->
+                        val choice = Button(this).apply {
+                            text = "📁  $name  (${entries.size})"
+                            textSize = 14f
+                            gravity = Gravity.START or Gravity.CENTER_VERTICAL
+                            setTextColor(textColor)
+                            setBackgroundColor(keyColor)
+                            isAllCaps = false
+                            setOnClickListener {
+                                addPinnedItem(itemToPin, name)
+                                pendingPinItem = null
+                                pendingMoveFromCategory = null
+                                selectedPinCategory = null
+                                setInputView(createKeyboardView())
+                            }
+                        }
+                        itemsLayout.addView(choice, LinearLayout.LayoutParams(
+                            LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT
+                        ).apply { setMargins(dp(2), dp(2), dp(2), dp(2)) })
+                    }
+                    val cancel = Button(this).apply {
+                        text = "BATAL"
+                        setTextColor(textColor)
+                        setBackgroundColor(keyColor)
+                        setOnClickListener {
+                            pendingPinItem = null
+                            pendingMoveFromCategory = null
+                            setInputView(createKeyboardView())
+                        }
+                    }
+                    itemsLayout.addView(cancel)
+                    if (categories.keys.none { it != pendingMoveFromCategory }) {
+                        addEmpty("Belum ada kategori tujuan. Buat kategori melalui aplikasi KEYBOARIZ X.")
+                    }
+                } else if (category == null) {
                     if (categories.isEmpty()) {
-                        addEmpty("Belum ada teks yang disematkan.\nSematkan teks dari halaman Riwayat.")
+                        addEmpty("Belum ada teks yang disematkan.\\nSematkan teks dari halaman Riwayat.")
                     } else {
                         categories.forEach { (name, categoryItems) ->
-                            val count = categoryItems.size
                             val folderButton = Button(this).apply {
-                                text = "📁  $name     ($count)"
+                                text = "📁  $name     (${categoryItems.size})"
                                 textSize = 14f
                                 gravity = Gravity.START or Gravity.CENTER_VERTICAL
                                 setTextColor(textColor)
@@ -239,14 +285,12 @@ class KeyboarizImeService : InputMethodService() {
                                     true
                                 }
                             }
-                            val lp = LinearLayout.LayoutParams(
+                            itemsLayout.addView(folderButton, LinearLayout.LayoutParams(
                                 LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT
-                            )
-                            lp.setMargins(dp(2), dp(2), dp(2), dp(2))
-                            itemsLayout.addView(folderButton, lp)
+                            ).apply { setMargins(dp(2), dp(2), dp(2), dp(2)) })
                         }
                     }
-                    addEmpty("Buat dan atur kategori melalui aplikasi KEYBOARIZ X.\nBuka aplikasi lalu pilih Kelola Kategori Sematan.")
+                    addEmpty("Buat dan atur kategori melalui aplikasi KEYBOARIZ X.\\nBuka aplikasi lalu pilih Kelola Kategori Sematan.")
                 } else {
                     val back = Button(this).apply {
                         text = "‹  KATEGORI"
@@ -263,11 +307,8 @@ class KeyboarizImeService : InputMethodService() {
                         LinearLayout.LayoutParams.MATCH_PARENT, dp(40)
                     ))
                     val entries = categories[category].orEmpty()
-                    if (entries.isEmpty()) {
-                        addEmpty("Kategori ini masih kosong.")
-                    } else {
-                        entries.forEach { addClipboardItem(it, true, category) }
-                    }
+                    if (entries.isEmpty()) addEmpty("Kategori ini masih kosong.")
+                    else entries.forEach { addClipboardItem(it, true, category) }
                 }
             }
 
@@ -469,44 +510,6 @@ class KeyboarizImeService : InputMethodService() {
         history.remove(item)
         history.add(0, item)
         saveClipboardHistory(history)
-    }
-
-    private fun showPinCategoryDialog(item: String) {
-        val names = loadPinCategories().keys.toList()
-        if (names.isEmpty()) {
-            Toast.makeText(this, "Buat kategori melalui aplikasi KEYBOARIZ X terlebih dahulu", Toast.LENGTH_LONG).show()
-            return
-        }
-        val anchor = window.window?.decorView ?: return
-        PopupMenu(this, anchor).apply {
-            names.forEach { name ->
-                menu.add(name).setOnMenuItemClickListener {
-                    addPinnedItem(item, name)
-                    setInputView(createKeyboardView())
-                    true
-                }
-            }
-            show()
-        }
-    }
-
-    private fun showMoveCategoryDialog(item: String, currentCategory: String?) {
-        val names = loadPinCategories().keys.filter { it != currentCategory }
-        if (names.isEmpty()) {
-            Toast.makeText(this, "Buat kategori lain melalui aplikasi KEYBOARIZ X", Toast.LENGTH_SHORT).show()
-            return
-        }
-        val anchor = window.window?.decorView ?: return
-        PopupMenu(this, anchor).apply {
-            names.forEach { name ->
-                menu.add(name).setOnMenuItemClickListener {
-                    addPinnedItem(item, name)
-                    setInputView(createKeyboardView())
-                    true
-                }
-            }
-            show()
-        }
     }
 
     private fun captureCurrentClipboard() {
