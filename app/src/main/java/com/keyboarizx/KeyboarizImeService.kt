@@ -365,13 +365,16 @@ class KeyboarizImeService : InputMethodService() {
                         label == "⌫" || label == "?123" -> label
                         label == "↵" -> displayLabel
                         label == "SPACE" && numberMode && symbolPage == 2 -> "⌨ KEYBOARIZ"
+                        label == "SPACE_ICON" -> "␣"
+                        label == "BARIS_BARU" -> "↵"
                         label == "SPACE" -> "SPACE"
                         else -> if (shiftState > 0 && !numberMode) label.uppercase() else label
                     }
                     textSize = when {
                         label == "SPACE" -> 10f
-                        numberMode && symbolPage == 3 && label.length == 1 && label[0].isDigit() -> 24f
-                        numberMode && symbolPage == 3 -> 16f
+                        numberMode && symbolPage == 3 && label.length == 1 && label[0].isDigit() -> 26f
+                        numberMode && symbolPage == 3 && label in listOf("+", "-", "*", "/", "%", "SPACE_ICON", "BARIS_BARU") -> 14f
+                        numberMode && symbolPage == 3 -> 12f
                         else -> 18f
                     }
                     val isAccent = (label == "⇧" && shiftState > 0) || label == "↵"
@@ -410,7 +413,7 @@ class KeyboarizImeService : InputMethodService() {
                         }
                     }
                 }
-                val keyHeight = if (numberMode && symbolPage == 3) 54 else 48
+                val keyHeight = if (numberMode && symbolPage == 3) 56 else 48
                 val params = LinearLayout.LayoutParams(0, dp(keyHeight), weights[index])
                 params.setMargins(dp(2), dp(2), dp(2), dp(2))
                 row.addView(button, params)
@@ -436,13 +439,14 @@ class KeyboarizImeService : InputMethodService() {
                 addRow(listOf("ABC", ",", "1+2", "SPACE", ".", "↵"),
                     listOf(1.3f,0.7f,1.2f,2.8f,0.7f,1.3f))
             } else {
-                // Halaman 3: Number Pad ala Gboard, bukan kalkulator.
-                // Tiga kolom angka besar dengan tombol fungsi di sisi kanan.
-                addRow(listOf("1","2","3","%"), listOf(1.2f,1.2f,1.2f,0.85f))
-                addRow(listOf("4","5","6","↵"), listOf(1.2f,1.2f,1.2f,0.85f))
-                addRow(listOf("7","8","9","⌫"), listOf(1.2f,1.2f,1.2f,0.85f))
-                addRow(listOf("ABC","!?#",",","0","=",".","↵"),
-                    listOf(1.15f,1.0f,0.65f,1.15f,0.85f,0.65f,1.15f))
+                // Halaman 3: Number Pad ala Gboard.
+                // Tombol angka dibuat besar; operator dan tombol fungsi lebih kecil.
+                // Angka 0 diposisikan tepat di bawah angka 8.
+                addRow(listOf("+","1","2","3","%"), listOf(0.6f,1.2f,1.2f,1.2f,0.6f))
+                addRow(listOf("-","4","5","6","SPACE_ICON"), listOf(0.6f,1.2f,1.2f,1.2f,0.6f))
+                addRow(listOf("*","7","8","9","⌫"), listOf(0.6f,1.2f,1.2f,1.2f,0.6f))
+                addRow(listOf("/","ABC",",","1+2","0","=",".","BARIS_BARU"),
+                    listOf(0.45f,0.8f,0.45f,0.8f,1.2f,0.9f,0.45f,1.15f))
             }
         } else {
             addRow(listOf("q","w","e","r","t","y","u","i","o","p"))
@@ -636,7 +640,8 @@ class KeyboarizImeService : InputMethodService() {
                     else -> connection.commitText("\n", 1)
                 }
             }
-            "SPACE" -> connection.commitText(" ", 1)
+            "SPACE", "SPACE_ICON" -> connection.commitText(" ", 1)
+            "BARIS_BARU" -> connection.commitText("\\n", 1)
             "?123" -> {
                 if (numberMode && symbolPage == 2) {
                     symbolPage = 1
