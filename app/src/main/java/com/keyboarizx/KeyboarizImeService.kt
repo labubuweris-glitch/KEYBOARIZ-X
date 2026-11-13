@@ -217,8 +217,8 @@ class KeyboarizImeService : InputMethodService() {
                     if (categories.isEmpty()) {
                         addEmpty("Belum ada teks yang disematkan.\nSematkan teks dari halaman Riwayat.")
                     } else {
-                        categories.forEach { name ->
-                            val count = categories[name]?.size ?: 0
+                        categories.forEach { (name, categoryItems) ->
+                            val count = categoryItems.size
                             val folderButton = Button(this).apply {
                                 text = "📁  $name     ($count)"
                                 textSize = 14f
@@ -519,11 +519,13 @@ class KeyboarizImeService : InputMethodService() {
                 val name = input.text.toString().trim()
                 if (name.isNotEmpty()) {
                     val categories = loadPinCategories().toMutableMap()
-                    if (categories.keys.none { it.equals(name, true) }) {
-                        categories[name] = emptyList()
+                    val existingName = categories.keys.firstOrNull { it.equals(name, true) }
+                    val targetName = existingName ?: name
+                    if (existingName == null) {
+                        categories[targetName] = emptyList()
                         savePinCategories(categories)
                     }
-                    if (itemToPin != null) addPinnedItem(itemToPin, name)
+                    if (itemToPin != null) addPinnedItem(itemToPin, targetName)
                     setInputView(createKeyboardView())
                 }
             }
