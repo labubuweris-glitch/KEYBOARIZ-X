@@ -377,7 +377,7 @@ class KeyboarizImeService : InputMethodService() {
                         numberMode && symbolPage == 3 -> 12f
                         else -> 18f
                     }
-                    val isAccent = (label == "⇧" && shiftState > 0) || label == "↵"
+                    val isAccent = (label == "⇧" && shiftState > 0) || label == "↵" || label == "BARIS_BARU"
                     setTextColor(if (isAccent) Color.rgb(4, 20, 29) else textColor)
                     setBackgroundColor(if (isAccent) accentColor else keyColor)
                     typeface = Typeface.DEFAULT
@@ -405,7 +405,7 @@ class KeyboarizImeService : InputMethodService() {
                     } else {
                         setOnClickListener {
                             if ((label == "1+2" || label == "1 2 3 4") && numberMode) {
-                                symbolPage = 3
+                                symbolPage = if (symbolPage == 3) 2 else 3
                                 setInputView(createKeyboardView())
                             } else {
                                 handleKey(label)
