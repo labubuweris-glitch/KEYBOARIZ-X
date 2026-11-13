@@ -13,6 +13,8 @@ import android.view.Gravity
 import android.view.MotionEvent
 import android.view.View
 import android.view.inputmethod.EditorInfo
+import android.view.inputmethod.ExtractedTextRequest
+import java.util.Locale
 import android.widget.Button
 import android.widget.LinearLayout
 import android.widget.PopupMenu
@@ -25,6 +27,8 @@ import org.json.JSONObject
 class KeyboarizImeService : InputMethodService() {
     // 0 = lowercase, 1 = one-shot shift, 2 = caps lock
     private var shiftState = 0
+    private var lastSelectionForCase: String? = null
+    private var selectionCaseMode = 0
     private var numberMode = false
     private var clipboardMode = false
     private var clipboardPage = 0 // 0 = riwayat, 1 = sematan
@@ -560,10 +564,28 @@ class KeyboarizImeService : InputMethodService() {
         val connection = currentInputConnection ?: return
         when (key) {
             "⇧" -> {
-                shiftState = when (shiftState) {
-                    0 -> 1
-                    1 -> 2
-                    else -> 0
+                val selected = connection.getSelectedText(0)?.toString()
+                if (!selected.isNullOrEmpty()) {
+                    if (selected != lastSelectionForCase) {
+                        selectionCaseMode = 0
+                    }
+                    selectionCaseMode = (selectionCaseMode % 3) + 1
+                    val transformed = when (selectionCaseMode) {
+                        1 -> titleCaseWords(selected)
+                        2 -> selected.uppercase(Locale.getDefault())
+                        else -> selected.lowercase(Locale.getDefault())
+                    }
+                    replaceSelectionKeepingIt(transformed)
+                    lastSelectionForCase = transformed
+                    shiftState = 0
+                } else {
+                    lastSelectionForCase = null
+                    selectionCaseMode = 0
+                    shiftState = when (shiftState) {
+                        0 -> 1
+                        1 -> 2
+                        else -> 0
+                    }
                 }
                 setInputView(createKeyboardView())
             }
@@ -601,7 +623,43 @@ class KeyboarizImeService : InputMethodService() {
     }
 
     private fun deleteOne() {
-        currentInputConnection?.deleteSurroundingText(1, 0)
+        val connection = currentInputConnection ?: return
+        val selected = connection.getSelectedText(0)
+        if (!selected.isNullOrEmpty()) {
+            connection.commitText("", 1)
+            lastSelectionForCase = null
+            selectionCaseMode = 0
+        } else {
+            connection.deleteSurroundingText(1, 0)
+        }
+    }
+
+    private fun titleCaseWords(value: String): String {
+        val locale = Locale.getDefault()
+        return Regex("\\S+").replace(value) { match ->
+            val word = match.value
+            val firstLetter = word.indexOfFirst { it.isLetter() }
+            if (firstLetter < 0) word
+            else word.substring(0, firstLetter) +
+                word[firstLetter].toString().uppercase(locale) +
+                word.substring(firstLetter + 1).lowercase(locale)
+        }
+    }
+
+    private fun replaceSelectionKeepingIt(replacement: String) {
+        val connection = currentInputConnection ?: return
+        val extracted = connection.getExtractedText(ExtractedTextRequest(), 0)
+        val selectionStart = extracted?.selectionStart ?: -1
+        val selectionEnd = extracted?.selectionEnd ?: -1
+        connection.beginBatchEdit()
+        try {
+            connection.commitText(replacement, 1)
+            if (selectionStart >= 0 && selectionEnd >= selectionStart) {
+                connection.setSelection(selectionStart, selectionStart + replacement.length)
+            }
+        } finally {
+            connection.endBatchEdit()
+        }
     }
 
     private fun stopDeleting() {
