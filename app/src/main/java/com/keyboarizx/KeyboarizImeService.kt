@@ -407,15 +407,23 @@ class KeyboarizImeService : InputMethodService() {
 
         if (numberMode) {
             if (symbolPage == 1) {
-                // Halaman simbol utama: angka, tanda baca, dan simbol umum.
+                // Halaman simbol 1: pertahankan susunan yang sudah cocok dengan Gboard.
                 addRow(listOf("1","2","3","4","5","6","7","8","9","0"))
                 addRow(listOf("@","#","$","_","&","-","+","(",")","/"))
-                addRow(listOf("=\\<","*","\"","'",":",";","!","?","⌫"),
+                addRow(listOf("=\\<","*","\\\"","'",":",";","!","?","⌫"),
+                    listOf(1.25f,1f,1f,1f,1f,1f,1f,1f,1.4f))
+                addRow(listOf("ABC", ",", "1 2 3 4", "SPACE", ".", "↵"),
+                    listOf(1.3f,0.7f,1.2f,2.8f,0.7f,1.3f))
+            } else if (symbolPage == 2) {
+                // Halaman simbol 2: jangan ubah, ini susunan Gboard yang sudah disetujui.
+                addRow(listOf("~","\u0060","|","•","√","π","÷","×","§","Δ"))
+                addRow(listOf("£","¢","€","¥","^","°","=","{","}","\\"))
+                addRow(listOf("=\\<","%","©","®","™","✓","[","]","⌫"),
                     listOf(1.25f,1f,1f,1f,1f,1f,1f,1f,1.4f))
                 addRow(listOf("ABC", ",", "1 2 3 4", "SPACE", ".", "↵"),
                     listOf(1.3f,0.7f,1.2f,2.8f,0.7f,1.3f))
             } else {
-                // Halaman angka bergaya kalkulator dengan tombol navigasi dan spasi di bawah.
+                // Halaman 3: keypad angka bergaya kalkulator.
                 addRow(listOf("7","8","9","÷"))
                 addRow(listOf("4","5","6","×"))
                 addRow(listOf("1","2","3","−"))
@@ -626,12 +634,22 @@ class KeyboarizImeService : InputMethodService() {
                 }
                 setInputView(createKeyboardView())
             }
-            "=\\<", "1 2 3 4" -> {
+            "=\\<" -> {
                 if (numberMode) {
-                    symbolPage = if (symbolPage == 1) 2 else 1
+                    symbolPage = when (symbolPage) {
+                        1 -> 2
+                        2 -> 1
+                        else -> 2
+                    }
                     setInputView(createKeyboardView())
                 } else {
                     connection.commitText(key, 1)
+                }
+            }
+            "1 2 3 4" -> {
+                if (numberMode && symbolPage == 2) {
+                    symbolPage = 3
+                    setInputView(createKeyboardView())
                 }
             }
             "ABC" -> {
