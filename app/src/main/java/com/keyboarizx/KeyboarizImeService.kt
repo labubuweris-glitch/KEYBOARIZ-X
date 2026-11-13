@@ -14,17 +14,22 @@ import android.view.MotionEvent
 import android.view.View
 import android.view.inputmethod.EditorInfo
 import android.widget.Button
+import android.widget.EditText
+import android.app.AlertDialog
 import android.widget.LinearLayout
 import android.widget.PopupMenu
 import android.widget.ScrollView
 import android.widget.TextView
 import org.json.JSONArray
+import org.json.JSONObject
 
 class KeyboarizImeService : InputMethodService() {
     // 0 = lowercase, 1 = one-shot shift, 2 = caps lock
     private var shiftState = 0
     private var numberMode = false
     private var clipboardMode = false
+    private var clipboardPage = 0 // 0 = riwayat, 1 = sematan
+    private var selectedPinCategory: String? = null
     private val prefs by lazy { getSharedPreferences("keyboard_settings", Context.MODE_PRIVATE) }
     private val handler = Handler(Looper.getMainLooper())
     private val clipboardManager by lazy {
@@ -85,23 +90,47 @@ class KeyboarizImeService : InputMethodService() {
         }
 
         if (clipboardMode) {
-            makeToolButton("CLIPBOARD", 3.2f) { }
+            makeToolButton("CLIPBOARD", 2.2f) { }
             makeToolButton("✕", 0.7f) {
                 clipboardMode = false
+                selectedPinCategory = null
                 setInputView(createKeyboardView())
             }
-
             root.addView(toolRow)
+
+            val tabRow = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+            fun addTab(label: String, page: Int) {
+                val tab = Button(this).apply {
+                    text = label
+                    textSize = 12f
+                    isAllCaps = false
+                    minWidth = 0
+                    minimumWidth = 0
+                    setTextColor(if (clipboardPage == page) Color.rgb(4, 20, 29) else textColor)
+                    setBackgroundColor(if (clipboardPage == page) accentColor else keyColor)
+                    setOnClickListener {
+                        clipboardPage = page
+                        selectedPinCategory = null
+                        setInputView(createKeyboardView())
+                    }
+                }
+                val lp = LinearLayout.LayoutParams(0, dp(38), 1f)
+                lp.setMargins(dp(2), dp(1), dp(2), dp(3))
+                tabRow.addView(tab, lp)
+            }
+            addTab("RIWAYAT", 0)
+            addTab("📌 SEMATAN", 1)
+            root.addView(tabRow)
+
             val scrollView = ScrollView(this)
             val itemsLayout = LinearLayout(this).apply {
                 orientation = LinearLayout.VERTICAL
                 setPadding(0, dp(2), 0, dp(2))
             }
-            val pinned = loadPinnedClipboard()
-            val history = pinned + loadClipboardHistory().filterNot { it in pinned }
-            if (history.isEmpty()) {
+
+            fun addEmpty(message: String) {
                 val emptyText = TextView(this).apply {
-                    text = "Belum ada teks tersimpan.\nSalin teks untuk menambahkannya ke Clipboard."
+                    text = message
                     textSize = 14f
                     setTextColor(textColor)
                     gravity = Gravity.CENTER
@@ -110,73 +139,183 @@ class KeyboarizImeService : InputMethodService() {
                 itemsLayout.addView(emptyText, LinearLayout.LayoutParams(
                     LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT
                 ))
-            } else {
-                history.forEach { item ->
-                    val itemButton = Button(this).apply {
-                        text = (if (item in pinned) "📌  " else "") +
-                            if (item.length > 180) item.take(180) + "…" else item
-                        textSize = 14f
-                        gravity = Gravity.START or Gravity.CENTER_VERTICAL
-                        setTextColor(textColor)
-                        setBackgroundColor(keyColor)
-                        isAllCaps = false
-                        minWidth = 0
-                        minimumWidth = 0
-                        setPadding(dp(12), dp(6), dp(12), dp(6))
-                        setOnClickListener {
-                            currentInputConnection?.commitText(item, 1)
-                            clipboardMode = false
-                            setInputView(createKeyboardView())
-                        }
-                        setOnLongClickListener {
-                            val menu = PopupMenu(this@KeyboarizImeService, this)
-                            if (item in loadPinnedClipboard()) {
-                                menu.menu.add("Lepas sematan").setOnMenuItemClickListener {
-                                    val updatedPinned = loadPinnedClipboard().toMutableList()
-                                    updatedPinned.remove(item)
-                                    savePinnedClipboard(updatedPinned)
-                                    val updatedHistory = loadClipboardHistory().toMutableList()
-                                    updatedHistory.remove(item)
-                                    updatedHistory.add(0, item)
-                                    saveClipboardHistory(updatedHistory)
-                                    setInputView(createKeyboardView())
-                                    true
-                                }
-                            } else {
-                                menu.menu.add("Sematkan").setOnMenuItemClickListener {
-                                    val updatedPinned = loadPinnedClipboard().toMutableList()
-                                    updatedPinned.remove(item)
-                                    updatedPinned.add(0, item)
-                                    savePinnedClipboard(updatedPinned)
-                                    val updatedHistory = loadClipboardHistory().toMutableList()
-                                    updatedHistory.remove(item)
-                                    saveClipboardHistory(updatedHistory)
-                                    setInputView(createKeyboardView())
-                                    true
-                                }
+            }
+
+            fun addClipboardItem(item: String, pinnedItem: Boolean, category: String?) {
+                val itemButton = Button(this).apply {
+                    text = (if (pinnedItem) "📌  " else "") +
+                        if (item.length > 180) item.take(180) + "…" else item
+                    textSize = 14f
+                    gravity = Gravity.START or Gravity.CENTER_VERTICAL
+                    setTextColor(textColor)
+                    setBackgroundColor(keyColor)
+                    isAllCaps = false
+                    minWidth = 0
+                    minimumWidth = 0
+                    setPadding(dp(12), dp(6), dp(12), dp(6))
+                    setOnClickListener {
+                        currentInputConnection?.commitText(item, 1)
+                        clipboardMode = false
+                        selectedPinCategory = null
+                        setInputView(createKeyboardView())
+                    }
+                    setOnLongClickListener {
+                        val menu = PopupMenu(this@KeyboarizImeService, this)
+                        if (!pinnedItem) {
+                            menu.menu.add("Sematkan").setOnMenuItemClickListener {
+                                showPinCategoryDialog(item)
+                                true
                             }
                             menu.menu.add("Hapus").setOnMenuItemClickListener {
-                                val updatedPinned = loadPinnedClipboard().toMutableList()
-                                updatedPinned.remove(item)
-                                savePinnedClipboard(updatedPinned)
-                                val updatedHistory = loadClipboardHistory().toMutableList()
-                                updatedHistory.remove(item)
-                                saveClipboardHistory(updatedHistory)
+                                val updated = loadClipboardHistory().toMutableList()
+                                updated.remove(item)
+                                saveClipboardHistory(updated)
                                 setInputView(createKeyboardView())
                                 true
                             }
-                            menu.show()
-                            true
+                        } else {
+                            menu.menu.add("Pindahkan kategori").setOnMenuItemClickListener {
+                                showMoveCategoryDialog(item, category)
+                                true
+                            }
+                            menu.menu.add("Lepas sematan").setOnMenuItemClickListener {
+                                removePinnedItem(item)
+                                setInputView(createKeyboardView())
+                                true
+                            }
+                            menu.menu.add("Hapus").setOnMenuItemClickListener {
+                                removePinnedItem(item)
+                                val updated = loadClipboardHistory().toMutableList()
+                                updated.remove(item)
+                                saveClipboardHistory(updated)
+                                setInputView(createKeyboardView())
+                                true
+                            }
+                        }
+                        menu.show()
+                        true
+                    }
+                }
+                val params = LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT
+                )
+                params.setMargins(dp(2), dp(2), dp(2), dp(2))
+                itemsLayout.addView(itemButton, params)
+            }
+
+            if (clipboardPage == 0) {
+                val history = loadClipboardHistory().filterNot { isPinned(it) }
+                if (history.isEmpty()) {
+                    addEmpty("Belum ada riwayat tersimpan.\nSalin teks untuk menambahkannya ke Clipboard.")
+                } else {
+                    history.forEach { addClipboardItem(it, false, null) }
+                }
+            } else {
+                val categories = loadPinCategories()
+                val category = selectedPinCategory
+                if (category == null) {
+                    if (categories.isEmpty()) {
+                        addEmpty("Belum ada teks yang disematkan.\nSematkan teks dari halaman Riwayat.")
+                    } else {
+                        categories.forEach { name ->
+                            val count = categories[name]?.size ?: 0
+                            val folderButton = Button(this).apply {
+                                text = "📁  $name     ($count)"
+                                textSize = 14f
+                                gravity = Gravity.START or Gravity.CENTER_VERTICAL
+                                setTextColor(textColor)
+                                setBackgroundColor(keyColor)
+                                isAllCaps = false
+                                minWidth = 0
+                                minimumWidth = 0
+                                setPadding(dp(12), dp(8), dp(12), dp(8))
+                                setOnClickListener {
+                                    selectedPinCategory = name
+                                    setInputView(createKeyboardView())
+                                }
+                                setOnLongClickListener {
+                                    val menu = PopupMenu(this@KeyboarizImeService, this)
+                                    menu.menu.add("Ubah nama").setOnMenuItemClickListener {
+                                        showRenameCategoryDialog(name)
+                                        true
+                                    }
+                                    menu.menu.add("Hapus kategori").setOnMenuItemClickListener {
+                                        deletePinCategory(name)
+                                        setInputView(createKeyboardView())
+                                        true
+                                    }
+                                    menu.show()
+                                    true
+                                }
+                            }
+                            val lp = LinearLayout.LayoutParams(
+                                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT
+                            )
+                            lp.setMargins(dp(2), dp(2), dp(2), dp(2))
+                            itemsLayout.addView(folderButton, lp)
                         }
                     }
-                    val params = LinearLayout.LayoutParams(
-                        LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT
+                    val addCategory = Button(this).apply {
+                        text = "+ Buat kategori"
+                        textSize = 14f
+                        setTextColor(if (true) Color.rgb(4, 20, 29) else textColor)
+                        setBackgroundColor(accentColor)
+                        isAllCaps = false
+                        setOnClickListener { showCreateCategoryDialog() }
+                    }
+                    val lp = LinearLayout.LayoutParams(
+                        LinearLayout.LayoutParams.MATCH_PARENT, dp(44)
                     )
-                    params.setMargins(dp(2), dp(2), dp(2), dp(2))
-                    itemsLayout.addView(itemButton, params)
+                    lp.setMargins(dp(2), dp(4), dp(2), dp(2))
+                    itemsLayout.addView(addCategory, lp)
+                } else {
+                    val back = Button(this).apply {
+                        text = "‹  KATEGORI"
+                        textSize = 13f
+                        setTextColor(textColor)
+                        setBackgroundColor(keyColor)
+                        isAllCaps = false
+                        setOnClickListener {
+                            selectedPinCategory = null
+                            setInputView(createKeyboardView())
+                        }
+                    }
+                    itemsLayout.addView(back, LinearLayout.LayoutParams(
+                        LinearLayout.LayoutParams.MATCH_PARENT, dp(40)
+                    ))
+                    val entries = categories[category].orEmpty()
+                    if (entries.isEmpty()) {
+                        addEmpty("Kategori ini masih kosong.")
+                    } else {
+                        entries.forEach { addClipboardItem(it, true, category) }
+                    }
                 }
             }
+
             scrollView.addView(itemsLayout)
+            scrollView.setOnTouchListener(object : View.OnTouchListener {
+                private var downX = 0f
+                private var downY = 0f
+                override fun onTouch(v: View, event: MotionEvent): Boolean {
+                    when (event.action) {
+                        MotionEvent.ACTION_DOWN -> {
+                            downX = event.x
+                            downY = event.y
+                        }
+                        MotionEvent.ACTION_UP -> {
+                            val dx = event.x - downX
+                            val dy = event.y - downY
+                            if (kotlin.math.abs(dx) > dp(70) && kotlin.math.abs(dx) > kotlin.math.abs(dy) * 1.4f) {
+                                clipboardPage = if (dx < 0) 1 else 0
+                                selectedPinCategory = null
+                                setInputView(createKeyboardView())
+                                return true
+                            }
+                        }
+                    }
+                    return false
+                }
+            })
             root.addView(scrollView, LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f
             ))
@@ -277,22 +416,167 @@ class KeyboarizImeService : InputMethodService() {
         prefs.edit().putString("clipboard_history", json.toString()).apply()
     }
 
-    private fun loadPinnedClipboard(): List<String> {
+    // Migrasi otomatis: sematan versi lama masuk ke kategori Belum Dikategorikan.
+    private fun loadPinCategories(): LinkedHashMap<String, List<String>> {
+        val raw = prefs.getString("clipboard_pin_categories", null)
+        if (raw != null) {
+            return try {
+                val json = JSONObject(raw)
+                val result = linkedMapOf<String, List<String>>()
+                val keys = json.keys()
+                while (keys.hasNext()) {
+                    val name = keys.next()
+                    val array = json.optJSONArray(name) ?: JSONArray()
+                    val values = (0 until array.length()).mapNotNull { i ->
+                        array.optString(i).takeIf { it.isNotBlank() }
+                    }.distinct()
+                    result[name] = values
+                }
+                result
+            } catch (_: Exception) {
+                linkedMapOf()
+            }
+        }
+        val legacy = loadLegacyPinnedClipboard()
+        val migrated = linkedMapOf<String, List<String>>()
+        if (legacy.isNotEmpty()) migrated["Belum Dikategorikan"] = legacy
+        savePinCategories(migrated)
+        prefs.edit().remove("clipboard_pinned").apply()
+        return migrated
+    }
+
+    private fun loadLegacyPinnedClipboard(): List<String> {
         val raw = prefs.getString("clipboard_pinned", null) ?: return emptyList()
         return try {
             val json = JSONArray(raw)
-            (0 until json.length()).mapNotNull { index ->
-                json.optString(index).takeIf { it.isNotBlank() }
-            }
+            (0 until json.length()).mapNotNull { i ->
+                json.optString(i).takeIf { it.isNotBlank() }
+            }.distinct()
         } catch (_: Exception) {
             emptyList()
         }
     }
 
-    private fun savePinnedClipboard(items: List<String>) {
-        val json = JSONArray()
-        items.distinct().forEach { json.put(it) }
-        prefs.edit().putString("clipboard_pinned", json.toString()).apply()
+    private fun savePinCategories(categories: Map<String, List<String>>) {
+        val json = JSONObject()
+        categories.forEach { (name, items) ->
+            val array = JSONArray()
+            items.distinct().forEach { array.put(it) }
+            json.put(name, array)
+        }
+        prefs.edit().putString("clipboard_pin_categories", json.toString()).apply()
+    }
+
+    private fun allPinnedItems(): List<String> =
+        loadPinCategories().values.flatten().distinct()
+
+    private fun isPinned(item: String): Boolean = item in allPinnedItems()
+
+    private fun addPinnedItem(item: String, category: String) {
+        val categories = loadPinCategories()
+        val updated = categories.mapValues { (_, values) -> values.filterNot { it == item } }.toMutableMap()
+        updated[category] = (updated[category].orEmpty() + item).distinct()
+        savePinCategories(updated)
+        val history = loadClipboardHistory().toMutableList()
+        history.remove(item)
+        saveClipboardHistory(history)
+    }
+
+    private fun removePinnedItem(item: String) {
+        val categories = loadPinCategories()
+        val updated = categories.mapValues { (_, values) -> values.filterNot { it == item } }
+            .filterValues { it.isNotEmpty() }
+        savePinCategories(updated)
+        val history = loadClipboardHistory().toMutableList()
+        history.remove(item)
+        history.add(0, item)
+        saveClipboardHistory(history)
+    }
+
+    private fun showPinCategoryDialog(item: String) {
+        val names = loadPinCategories().keys.toMutableList()
+        val options = names + "＋ Buat kategori baru"
+        AlertDialog.Builder(this)
+            .setTitle("Pilih kategori")
+            .setItems(options.toTypedArray()) { _, which ->
+                if (which == options.lastIndex) {
+                    showCreateCategoryDialog(item)
+                } else {
+                    addPinnedItem(item, names[which])
+                    setInputView(createKeyboardView())
+                }
+            }
+            .setNegativeButton("Batal", null)
+            .show()
+    }
+
+    private fun showCreateCategoryDialog(itemToPin: String? = null) {
+        val input = EditText(this).apply { hint = "Nama kategori" }
+        AlertDialog.Builder(this)
+            .setTitle("Buat kategori")
+            .setView(input)
+            .setPositiveButton("Simpan") { _, _ ->
+                val name = input.text.toString().trim()
+                if (name.isNotEmpty()) {
+                    val categories = loadPinCategories().toMutableMap()
+                    if (categories.keys.none { it.equals(name, true) }) {
+                        categories[name] = emptyList()
+                        savePinCategories(categories)
+                    }
+                    if (itemToPin != null) addPinnedItem(itemToPin, name)
+                    setInputView(createKeyboardView())
+                }
+            }
+            .setNegativeButton("Batal", null)
+            .show()
+    }
+
+    private fun showMoveCategoryDialog(item: String, currentCategory: String?) {
+        val names = loadPinCategories().keys.filter { it != currentCategory }
+        if (names.isEmpty()) {
+            showCreateCategoryDialog(item)
+            return
+        }
+        AlertDialog.Builder(this)
+            .setTitle("Pindahkan ke kategori")
+            .setItems(names.toTypedArray()) { _, which ->
+                addPinnedItem(item, names[which])
+                setInputView(createKeyboardView())
+            }
+            .setNegativeButton("Batal", null)
+            .show()
+    }
+
+    private fun showRenameCategoryDialog(oldName: String) {
+        val input = EditText(this).apply { setText(oldName) }
+        AlertDialog.Builder(this)
+            .setTitle("Ubah nama kategori")
+            .setView(input)
+            .setPositiveButton("Simpan") { _, _ ->
+                val newName = input.text.toString().trim()
+                if (newName.isNotEmpty() && newName != oldName) {
+                    val categories = loadPinCategories().toMutableMap()
+                    if (categories.keys.none { it.equals(newName, true) }) {
+                        val items = categories.remove(oldName).orEmpty()
+                        categories[newName] = items
+                        savePinCategories(categories)
+                    }
+                    setInputView(createKeyboardView())
+                }
+            }
+            .setNegativeButton("Batal", null)
+            .show()
+    }
+
+    private fun deletePinCategory(name: String) {
+        val categories = loadPinCategories().toMutableMap()
+        val removed = categories.remove(name).orEmpty()
+        if (removed.isNotEmpty()) {
+            categories["Belum Dikategorikan"] =
+                (categories["Belum Dikategorikan"].orEmpty() + removed).distinct()
+        }
+        savePinCategories(categories)
+        selectedPinCategory = null
     }
 
     private fun captureCurrentClipboard() {
@@ -305,7 +589,7 @@ class KeyboarizImeService : InputMethodService() {
 
         val text = clip.getItemAt(0).coerceToText(this)?.toString()?.trim()
             ?.takeIf { it.isNotEmpty() } ?: return
-        if (text in loadPinnedClipboard()) return
+        if (isPinned(text)) return
         val history = loadClipboardHistory().toMutableList()
         history.remove(text)
         history.add(0, text)
