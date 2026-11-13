@@ -6,6 +6,13 @@ import android.content.ClipboardManager
 import android.content.Context
 import android.graphics.Color
 import android.graphics.Typeface
+import android.graphics.Canvas
+import android.graphics.Paint
+import android.graphics.Path
+import android.graphics.RectF
+import android.graphics.drawable.Drawable
+import android.graphics.ColorFilter
+import android.graphics.PixelFormat
 import android.os.Handler
 import android.os.Looper
 import android.text.InputType
@@ -68,6 +75,7 @@ class KeyboarizImeService : InputMethodService() {
         val textColor = prefs.getInt("textColor", Color.WHITE)
         val keyColor = prefs.getInt("keyColor", Color.rgb(37, 55, 70))
         val backgroundColor = prefs.getInt("backgroundColor", Color.rgb(17, 28, 39))
+        val keyShape = prefs.getString("keyShape", "ROUNDED") ?: "ROUNDED"
         val accentColor = Color.rgb(0, 207, 255)
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
@@ -82,7 +90,7 @@ class KeyboarizImeService : InputMethodService() {
                 text = label
                 textSize = 13f
                 setTextColor(textColor)
-                setBackgroundColor(keyColor)
+                background = KeyShapeDrawable(keyColor, keyShape, resources.displayMetrics.density)
                 typeface = Typeface.DEFAULT_BOLD
                 isAllCaps = false
                 minWidth = 0
@@ -354,8 +362,15 @@ class KeyboarizImeService : InputMethodService() {
         }
         root.addView(toolRow)
 
+        var keyboardRowIndex = 0
         fun addRow(keys: List<String>, weights: List<Float> = List(keys.size) { 1f }) {
-            val row = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+            val staggeredRow = keyShape in listOf("LOVE", "HEXAGON", "DIAMOND") && keyboardRowIndex % 2 == 1
+            val invertedLoveRow = keyShape == "LOVE" && staggeredRow
+            val row = LinearLayout(this).apply {
+                orientation = LinearLayout.HORIZONTAL
+                if (staggeredRow) setPadding(dp(12), 0, 0, 0)
+            }
+            keyboardRowIndex++
             keys.forEachIndexed { index, label ->
                 val displayLabel = if (label == "↵") enterKeyLabel() else label
                 val button = Button(this).apply {
@@ -379,7 +394,12 @@ class KeyboarizImeService : InputMethodService() {
                     }
                     val isAccent = (label == "⇧" && shiftState > 0) || label == "↵" || label == "BARIS_BARU"
                     setTextColor(if (isAccent) Color.rgb(4, 20, 29) else textColor)
-                    setBackgroundColor(if (isAccent) accentColor else keyColor)
+                    background = KeyShapeDrawable(
+                        if (isAccent) accentColor else keyColor,
+                        keyShape,
+                        resources.displayMetrics.density,
+                        invertedLoveRow
+                    )
                     typeface = Typeface.DEFAULT
                     isAllCaps = false
                     minWidth = 0
@@ -747,4 +767,105 @@ class KeyboarizImeService : InputMethodService() {
     }
 
     private fun dp(value: Int) = (value * resources.displayMetrics.density).toInt()
+}
+
+/**
+ * Draws keyboard key shapes while keeping the actual Android Button view as the touch target.
+ * For staggered styles the whole row (and therefore its touch targets) is shifted together.
+ */
+private class KeyShapeDrawable(
+    private val fillColor: Int,
+    private val shape: String,
+    private val density: Float,
+    private val inverted: Boolean = false
+) : Drawable() {
+    private val paint = Paint(Paint.ANTI_ALIAS_FLAG)
+    private val rect = RectF()
+
+    override fun draw(canvas: Canvas) {
+        val b = bounds
+        val inset = 1.5f * density
+        rect.set(
+            b.left + inset,
+            b.top + inset,
+            b.right - inset,
+            b.bottom - inset
+        )
+        if (rect.width() <= 0f || rect.height() <= 0f) return
+
+        paint.color = fillColor
+        paint.style = Paint.Style.FILL
+        val radius = when (shape) {
+            "PILL" -> rect.height() / 2f
+            "SOFT_SQUARE" -> 9f * density
+            "ROUNDED" -> 6f * density
+            "DOUBLE_BORDER" -> 7f * density
+            else -> 3f * density
+        }
+
+        when (shape) {
+            "CIRCLE", "OVAL" -> canvas.drawOval(rect, paint)
+            "HEXAGON" -> canvas.drawPath(polygonPath(
+                listOf(
+                    0.25f to 0f, 0.75f to 0f, 1f to 0.5f,
+                    0.75f to 1f, 0.25f to 1f, 0f to 0.5f
+                )
+            ), paint)
+            "DIAMOND" -> canvas.drawPath(polygonPath(
+                listOf(0.5f to 0f, 1f to 0.5f, 0.5f to 1f, 0f to 0.5f)
+            ), paint)
+            "LOVE" -> {
+                val path = Path()
+                val w = rect.width()
+                val h = rect.height()
+                path.moveTo(rect.left + w * 0.5f, rect.top + h * 0.96f)
+                path.cubicTo(rect.left + w * 0.39f, rect.top + h * 0.82f,
+                    rect.left + w * 0.02f, rect.top + h * 0.56f,
+                    rect.left + w * 0.02f, rect.top + h * 0.29f)
+                path.cubicTo(rect.left + w * 0.02f, rect.top + h * 0.02f,
+                    rect.left + w * 0.34f, rect.top - h * 0.04f,
+                    rect.left + w * 0.5f, rect.top + h * 0.25f)
+                path.cubicTo(rect.left + w * 0.66f, rect.top - h * 0.04f,
+                    rect.left + w * 0.98f, rect.top + h * 0.02f,
+                    rect.left + w * 0.98f, rect.top + h * 0.29f)
+                path.cubicTo(rect.left + w * 0.98f, rect.top + h * 0.56f,
+                    rect.left + w * 0.61f, rect.top + h * 0.82f,
+                    rect.left + w * 0.5f, rect.top + h * 0.96f)
+                path.close()
+                if (inverted) {
+                    val matrix = android.graphics.Matrix().apply {
+                        setRotate(180f, rect.centerX(), rect.centerY())
+                    }
+                    path.transform(matrix)
+                }
+                canvas.drawPath(path, paint)
+            }
+            "DOUBLE_BORDER" -> {
+                canvas.drawRoundRect(rect, radius, radius, paint)
+                paint.style = Paint.Style.STROKE
+                paint.strokeWidth = 1.2f * density
+                paint.color = Color.argb(190, 255, 255, 255)
+                val inner = RectF(rect).apply { inset(3f * density, 3f * density) }
+                canvas.drawRoundRect(inner, radius * 0.65f, radius * 0.65f, paint)
+            }
+            "PILL", "ROUNDED", "SOFT_SQUARE" -> canvas.drawRoundRect(rect, radius, radius, paint)
+            else -> canvas.drawRoundRect(rect, radius, radius, paint)
+        }
+    }
+
+    private fun polygonPath(points: List<Pair<Float, Float>>): Path {
+        return Path().apply {
+            points.forEachIndexed { index, point ->
+                val x = rect.left + rect.width() * point.first
+                val y = rect.top + rect.height() * point.second
+                if (index == 0) moveTo(x, y) else lineTo(x, y)
+            }
+            close()
+        }
+    }
+
+    override fun setAlpha(alpha: Int) { paint.alpha = alpha }
+    override fun setColorFilter(colorFilter: ColorFilter?) { paint.colorFilter = colorFilter }
+    @Deprecated("Deprecated in Java")
+    override fun getOpacity(): Int = PixelFormat.TRANSLUCENT
 }
