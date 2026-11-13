@@ -3,6 +3,12 @@ plugins {
     id("org.jetbrains.kotlin.android")
 }
 
+val copyCustomKeySound by tasks.registering(Copy::class) {
+    from(rootProject.file("suara_ketik.ogg"))
+    into(layout.buildDirectory.dir("generated/customSound/res/raw"))
+    rename { "suara_ketik.ogg" }
+}
+
 android {
     namespace = "com.keyboarizx"
     compileSdk = 35
@@ -31,5 +37,11 @@ android {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
+    sourceSets.getByName("main").res.srcDir(layout.buildDirectory.dir("generated/customSound/res"))
     kotlinOptions { jvmTarget = "17" }
+}
+
+tasks.named("preBuild").configure {
+    dependsOn(copyCustomKeySound)
+}
 }
