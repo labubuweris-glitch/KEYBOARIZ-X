@@ -478,29 +478,64 @@ class KeyboarizImeService : InputMethodService() {
                     if (label == "↵") enterButton = this
 
                     if (label == "⌫") {
-                        setOnClickListener { deleteOne(playSound = true) }
-                        setOnLongClickListener {
-                            if (!deleting) {
+                        // Hapus satu karakter saat dilepas; jika ditahan, mulai hapus berulang.
+                        var backspacePointerDown = false
+                        var backspaceLongPressed = false
+                        val startLongDelete = Runnable {
+                            if (backspacePointerDown && !backspaceLongPressed) {
+                                backspaceLongPressed = true
                                 deleting = true
                                 deleteOne(playSound = false)
                                 startLongDeleteSound()
-                                handler.postDelayed(deleteRepeat, 350L)
+                                handler.postDelayed(deleteRepeat, 55L)
                             }
-                            true
                         }
                         setOnTouchListener { _, event ->
-                            if (event.action == MotionEvent.ACTION_UP ||
-                                event.action == MotionEvent.ACTION_CANCEL) stopDeleting()
-                            false
+                            when (event.actionMasked) {
+                                MotionEvent.ACTION_DOWN -> {
+                                    backspacePointerDown = true
+                                    backspaceLongPressed = false
+                                    handler.removeCallbacks(startLongDelete)
+                                    handler.postDelayed(startLongDelete, 350L)
+                                    true
+                                }
+                                MotionEvent.ACTION_UP -> {
+                                    backspacePointerDown = false
+                                    handler.removeCallbacks(startLongDelete)
+                                    if (backspaceLongPressed) {
+                                        stopDeleting()
+                                    } else {
+                                        deleteOne(playSound = true)
+                                    }
+                                    true
+                                }
+                                MotionEvent.ACTION_CANCEL -> {
+                                    backspacePointerDown = false
+                                    handler.removeCallbacks(startLongDelete)
+                                    stopDeleting()
+                                    true
+                                }
+                                else -> true
+                            }
                         }
                     } else {
-                        setOnClickListener {
-                            playKeySound(label)
-                            if ((label == "1+2" || label == "1 2 3 4") && numberMode) {
-                                symbolPage = if (symbolPage == 3) 2 else 3
-                                setInputView(createKeyboardView())
-                            } else {
-                                handleKey(label)
+                        // Proses tombol pada ACTION_DOWN agar input tidak menunggu jari diangkat.
+                        setOnTouchListener { _, event ->
+                            when (event.actionMasked) {
+                                MotionEvent.ACTION_DOWN -> {
+                                    playKeySound(label)
+                                    if ((label == "1+2" || label == "1 2 3 4") && numberMode) {
+                                        symbolPage = if (symbolPage == 3) 2 else 3
+                                        setInputView(createKeyboardView())
+                                    } else {
+                                        handleKey(label)
+                                    }
+                                    true
+                                }
+                                MotionEvent.ACTION_MOVE,
+                                MotionEvent.ACTION_UP,
+                                MotionEvent.ACTION_CANCEL -> true
+                                else -> true
                             }
                         }
                     }
