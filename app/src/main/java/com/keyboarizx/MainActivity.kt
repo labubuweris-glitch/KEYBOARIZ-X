@@ -160,6 +160,45 @@ class MainActivity : Activity() {
         addAction(root, "Ubah warna tombol") { editCustomColor("Warna tombol", "keyColor") }
         addAction(root, "Ubah warna latar keyboard") { editCustomColor("Warna latar keyboard", "backgroundColor") }
 
+
+        section(root, "SUARA KETIK CUSTOM")
+        val soundEnabled = CheckBox(this).apply {
+            text = "Aktifkan suara ketik"
+            textSize = 14f
+            setTextColor(Color.WHITE)
+            buttonTintList = android.content.res.ColorStateList.valueOf(cyan)
+            isChecked = prefs.getBoolean("keySoundEnabled", true)
+            setOnCheckedChangeListener { _, checked ->
+                prefs.edit().putBoolean("keySoundEnabled", checked).apply()
+            }
+        }
+        root.addView(soundEnabled)
+        root.addView(TextView(this).apply {
+            text = "Suara dari rekaman bro • suara_ketik.ogg"
+            textSize = 12f
+            setTextColor(Color.LTGRAY)
+        })
+        root.addView(TextView(this).apply {
+            text = "Volume suara"
+            textSize = 13f
+            setTextColor(Color.WHITE)
+            setPadding(0, dp(8), 0, 0)
+        })
+        val soundVolume = SeekBar(this).apply {
+            max = 100
+            progress = prefs.getInt("keySoundVolume", 65)
+            progressTintList = android.content.res.ColorStateList.valueOf(cyan)
+            thumbTintList = android.content.res.ColorStateList.valueOf(cyan)
+            setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+                override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
+                    prefs.edit().putInt("keySoundVolume", progress).apply()
+                }
+                override fun onStartTrackingTouch(seekBar: SeekBar?) {}
+                override fun onStopTrackingTouch(seekBar: SeekBar?) {}
+            })
+        }
+        root.addView(soundVolume, LinearLayout.LayoutParams(-1, dp(42)))
+
         section(root, "BENTUK TOMBOL")
         root.addView(TextView(this).apply {
             text = "Pilih bentuk tombol. Love, Hexagon, dan Diamond memakai susunan selang-seling."
