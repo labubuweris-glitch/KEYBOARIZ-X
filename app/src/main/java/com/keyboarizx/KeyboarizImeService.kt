@@ -477,7 +477,7 @@ class KeyboarizImeService : InputMethodService() {
             Toast.makeText(this, "Buat kategori melalui aplikasi KEYBOARIZ X terlebih dahulu", Toast.LENGTH_LONG).show()
             return
         }
-        val anchor = currentInputView ?: return
+        val anchor = window.window?.decorView ?: return
         PopupMenu(this, anchor).apply {
             names.forEach { name ->
                 menu.add(name).setOnMenuItemClickListener {
@@ -496,7 +496,7 @@ class KeyboarizImeService : InputMethodService() {
             Toast.makeText(this, "Buat kategori lain melalui aplikasi KEYBOARIZ X", Toast.LENGTH_SHORT).show()
             return
         }
-        val anchor = currentInputView ?: return
+        val anchor = window.window?.decorView ?: return
         PopupMenu(this, anchor).apply {
             names.forEach { name ->
                 menu.add(name).setOnMenuItemClickListener {
