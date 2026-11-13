@@ -76,7 +76,14 @@ class KeyboarizImeService : InputMethodService() {
         val keyColor = prefs.getInt("keyColor", Color.rgb(37, 55, 70))
         val backgroundColor = prefs.getInt("backgroundColor", Color.rgb(17, 28, 39))
         val keyShape = prefs.getString("keyShape", "ROUNDED") ?: "ROUNDED"
-        val accentColor = Color.rgb(0, 207, 255)
+
+        // Aksen dibuat dari warna tombol + warna tulisan agar selalu selaras dengan tema aktif.
+        val accentColor = blendThemeColors(keyColor, textColor, 0.28f)
+        val accentTextColor = if (Color.luminance(accentColor) > 0.52f) {
+            Color.rgb(20, 24, 30)
+        } else {
+            Color.WHITE
+        }
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(dp(4), dp(6), dp(4), dp(6))
@@ -120,7 +127,7 @@ class KeyboarizImeService : InputMethodService() {
                     isAllCaps = false
                     minWidth = 0
                     minimumWidth = 0
-                    setTextColor(if (clipboardPage == page) Color.rgb(4, 20, 29) else textColor)
+                    setTextColor(if (clipboardPage == page) accentTextColor else textColor)
                     setBackgroundColor(if (clipboardPage == page) accentColor else keyColor)
                     setOnClickListener {
                         clipboardPage = page
@@ -393,7 +400,7 @@ class KeyboarizImeService : InputMethodService() {
                         else -> 18f
                     }
                     val isAccent = (label == "⇧" && shiftState > 0) || label == "↵" || label == "BARIS_BARU"
-                    setTextColor(if (isAccent) Color.rgb(4, 20, 29) else textColor)
+                    setTextColor(if (isAccent) accentTextColor else textColor)
                     background = KeyShapeDrawable(
                         if (isAccent) accentColor else keyColor,
                         keyShape,
@@ -767,6 +774,16 @@ class KeyboarizImeService : InputMethodService() {
     }
 
     private fun dp(value: Int) = (value * resources.displayMetrics.density).toInt()
+
+    private fun blendThemeColors(base: Int, tint: Int, tintAmount: Float): Int {
+        val amount = tintAmount.coerceIn(0f, 1f)
+        val inverse = 1f - amount
+        return Color.rgb(
+            (Color.red(base) * inverse + Color.red(tint) * amount).toInt(),
+            (Color.green(base) * inverse + Color.green(tint) * amount).toInt(),
+            (Color.blue(base) * inverse + Color.blue(tint) * amount).toInt()
+        )
+    }
 }
 
 /**
