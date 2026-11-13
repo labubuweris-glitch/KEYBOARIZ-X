@@ -364,10 +364,11 @@ class KeyboarizImeService : InputMethodService() {
                         label == "⇧" -> "⇧"
                         label == "⌫" || label == "?123" -> label
                         label == "↵" -> displayLabel
+                        label == "SPACE" && numberMode && symbolPage == 2 -> "⌨ KEYBOARIZ"
                         label == "SPACE" -> "SPACE"
                         else -> if (shiftState > 0 && !numberMode) label.uppercase() else label
                     }
-                    textSize = if (label == "SPACE") 12f else 18f
+                    textSize = if (label == "SPACE") 10f else 18f
                     val isAccent = (label == "⇧" && shiftState > 0) || label == "↵"
                     setTextColor(if (isAccent) Color.rgb(4, 20, 29) else textColor)
                     setBackgroundColor(if (isAccent) accentColor else keyColor)
@@ -414,14 +415,14 @@ class KeyboarizImeService : InputMethodService() {
                 addRow(listOf("ABC", ",", "1 2 3 4", "SPACE", ".", "↵"),
                     listOf(1.3f,0.7f,1.2f,2.8f,0.7f,1.3f))
             } else {
-                // Halaman simbol tambahan, mengikuti pola dua halaman Gboard.
-                addRow(listOf("~","`","|","•","√","π","÷","×","§","Δ"))
-                addRow(listOf("£","¢","€","¥","^","°","=","{","}","\\"))
-                addRow(listOf("=\\<","%","©","®","™","✓","[","]","⌫"),
-                    listOf(1.25f,1f,1f,1f,1f,1f,1f,1f,1.4f))
-                addRow(listOf("ABC", ",", "1 2 3 4", "SPACE", ".", "↵"),
-                    listOf(1.3f,0.7f,1.2f,2.8f,0.7f,1.3f))
-            }
+                // Halaman angka bergaya kalkulator dengan tombol navigasi dan spasi di bawah.
+                addRow(listOf("7","8","9","÷"))
+                addRow(listOf("4","5","6","×"))
+                addRow(listOf("1","2","3","−"))
+                addRow(listOf("0","+","=","*","/"),
+                    listOf(1.5f,1f,1f,1f,1f))
+                addRow(listOf("=\\<",",","SPACE",".","⌫","ABC"),
+                    listOf(1.1f,0.65f,2.4f,0.65f,1.1f,1.1f))
         } else {
             addRow(listOf("q","w","e","r","t","y","u","i","o","p"))
             addRow(listOf("a","s","d","f","g","h","j","k","l"))
