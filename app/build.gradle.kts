@@ -44,4 +44,3 @@ android {
 tasks.named("preBuild").configure {
     dependsOn(copyCustomKeySound)
 }
-}
