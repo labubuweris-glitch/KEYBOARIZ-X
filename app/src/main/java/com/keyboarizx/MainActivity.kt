@@ -159,6 +159,33 @@ class MainActivity : Activity() {
         addAction(root, "Ubah warna tulisan") { editCustomColor("Warna tulisan", "textColor") }
         addAction(root, "Ubah warna tombol") { editCustomColor("Warna tombol", "keyColor") }
         addAction(root, "Ubah warna latar keyboard") { editCustomColor("Warna latar keyboard", "backgroundColor") }
+
+        section(root, "BENTUK TOMBOL")
+        root.addView(TextView(this).apply {
+            text = "Pilih bentuk tombol. Love, Hexagon, dan Diamond memakai susunan selang-seling."
+            textSize = 13f
+            setTextColor(Color.LTGRAY)
+        })
+        val shapeOptions = listOf(
+            "Rounded", "Pill", "Square", "Soft Square", "Circle",
+            "Love", "Hexagon", "Oval", "Diamond", "Double Border"
+        )
+        val shapeValues = listOf(
+            "ROUNDED", "PILL", "SQUARE", "SOFT_SQUARE", "CIRCLE",
+            "LOVE", "HEXAGON", "OVAL", "DIAMOND", "DOUBLE_BORDER"
+        )
+        val shapeSpinner = Spinner(this).apply {
+            adapter = ArrayAdapter(this@MainActivity, android.R.layout.simple_spinner_dropdown_item, shapeOptions)
+            setSelection(shapeValues.indexOf(prefs.getString("keyShape", "ROUNDED")).coerceAtLeast(0))
+        }
+        root.addView(shapeSpinner, LinearLayout.LayoutParams(-1, dp(52)))
+        shapeSpinner.onItemSelectedListener = object : android.widget.AdapterView.OnItemSelectedListener {
+            override fun onNothingSelected(parent: android.widget.AdapterView<*>?) {}
+            override fun onItemSelected(parent: android.widget.AdapterView<*>?, view: android.view.View?, position: Int, id: Long) {
+                prefs.edit().putString("keyShape", shapeValues[position]).apply()
+            }
+        }
+
         section(root, "CLIPBOARD")
         addAction(root, "Kelola Kategori Sematan") {
             showCategoryManager()
