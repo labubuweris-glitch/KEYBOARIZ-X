@@ -12,6 +12,7 @@ import android.text.InputType
 import android.view.Gravity
 import android.view.MotionEvent
 import android.view.View
+import android.view.WindowManager
 import android.view.inputmethod.EditorInfo
 import android.widget.Button
 import android.widget.EditText
@@ -495,7 +496,7 @@ class KeyboarizImeService : InputMethodService() {
     private fun showPinCategoryDialog(item: String) {
         val names = loadPinCategories().keys.toMutableList()
         val options = names + "＋ Buat kategori baru"
-        AlertDialog.Builder(this)
+        val dialog = AlertDialog.Builder(this)
             .setTitle("Pilih kategori")
             .setItems(options.toTypedArray()) { _, which ->
                 if (which == options.lastIndex) {
@@ -506,12 +507,13 @@ class KeyboarizImeService : InputMethodService() {
                 }
             }
             .setNegativeButton("Batal", null)
-            .show()
+            .create()
+        showImeDialog(dialog)
     }
 
     private fun showCreateCategoryDialog(itemToPin: String? = null) {
         val input = EditText(this).apply { hint = "Nama kategori" }
-        AlertDialog.Builder(this)
+        val dialog = AlertDialog.Builder(this)
             .setTitle("Buat kategori")
             .setView(input)
             .setPositiveButton("Simpan") { _, _ ->
@@ -529,7 +531,8 @@ class KeyboarizImeService : InputMethodService() {
                 }
             }
             .setNegativeButton("Batal", null)
-            .show()
+            .create()
+        showImeDialog(dialog)
     }
 
     private fun showMoveCategoryDialog(item: String, currentCategory: String?) {
@@ -538,19 +541,20 @@ class KeyboarizImeService : InputMethodService() {
             showCreateCategoryDialog(item)
             return
         }
-        AlertDialog.Builder(this)
+        val dialog = AlertDialog.Builder(this)
             .setTitle("Pindahkan ke kategori")
             .setItems(names.toTypedArray()) { _, which ->
                 addPinnedItem(item, names[which])
                 setInputView(createKeyboardView())
             }
             .setNegativeButton("Batal", null)
-            .show()
+            .create()
+        showImeDialog(dialog)
     }
 
     private fun showRenameCategoryDialog(oldName: String) {
         val input = EditText(this).apply { setText(oldName) }
-        AlertDialog.Builder(this)
+        val dialog = AlertDialog.Builder(this)
             .setTitle("Ubah nama kategori")
             .setView(input)
             .setPositiveButton("Simpan") { _, _ ->
@@ -566,7 +570,14 @@ class KeyboarizImeService : InputMethodService() {
                 }
             }
             .setNegativeButton("Batal", null)
-            .show()
+            .create()
+        showImeDialog(dialog)
+    }
+
+    // Attach category dialogs to the IME window instead of a normal app window.
+    private fun showImeDialog(dialog: AlertDialog) {
+        dialog.window?.setType(WindowManager.LayoutParams.TYPE_APPLICATION_ATTACHED_DIALOG)
+        dialog.show()
     }
 
     private fun deletePinCategory(name: String) {
