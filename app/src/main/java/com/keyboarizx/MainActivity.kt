@@ -19,8 +19,23 @@ class MainActivity : Activity() {
     private val dark = Color.rgb(8, 13, 20)
     private val palettes = listOf(
         Palette("Hitam Cyan", Color.WHITE, Color.rgb(37, 55, 70), Color.rgb(17, 28, 39)),
-        Palette("Gelap Hijau", Color.WHITE, Color.rgb(35, 65, 55), Color.rgb(12, 27, 24)),
-        Palette("Terang", Color.rgb(20, 28, 38), Color.rgb(220, 232, 240), Color.rgb(238, 244, 248))
+        Palette("Hitam Merah", Color.WHITE, Color.rgb(91, 35, 42), Color.rgb(28, 14, 18)),
+        Palette("Hitam Ungu", Color.WHITE, Color.rgb(75, 48, 103), Color.rgb(25, 17, 35)),
+        Palette("Hitam Hijau", Color.WHITE, Color.rgb(35, 83, 61), Color.rgb(12, 27, 20)),
+        Palette("Hitam Emas", Color.rgb(255, 225, 157), Color.rgb(91, 70, 35), Color.rgb(29, 24, 15)),
+        Palette("Hitam Biru", Color.WHITE, Color.rgb(39, 66, 112), Color.rgb(13, 21, 37)),
+        Palette("Hitam Oranye", Color.WHITE, Color.rgb(112, 62, 29), Color.rgb(31, 20, 13)),
+        Palette("Hitam Pink", Color.WHITE, Color.rgb(105, 43, 78), Color.rgb(31, 16, 26)),
+        Palette("Hitam Putih", Color.WHITE, Color.rgb(65, 65, 65), Color.rgb(20, 20, 20)),
+        Palette("Ocean", Color.WHITE, Color.rgb(29, 91, 108), Color.rgb(13, 37, 46)),
+        Palette("Forest", Color.WHITE, Color.rgb(48, 91, 55), Color.rgb(17, 34, 20)),
+        Palette("Wine", Color.WHITE, Color.rgb(112, 42, 61), Color.rgb(43, 17, 26)),
+        Palette("Graphite", Color.WHITE, Color.rgb(75, 83, 92), Color.rgb(31, 35, 40)),
+        Palette("Silver", Color.rgb(25, 31, 39), Color.rgb(194, 204, 214), Color.rgb(224, 230, 236)),
+        Palette("Arctic", Color.rgb(19, 45, 58), Color.rgb(177, 225, 241), Color.rgb(224, 244, 250)),
+        Palette("Cloud", Color.rgb(28, 42, 65), Color.rgb(202, 218, 242), Color.rgb(237, 243, 251)),
+        Palette("Rose", Color.rgb(76, 34, 54), Color.rgb(244, 202, 220), Color.rgb(255, 237, 245)),
+        Palette("Emerald", Color.rgb(20, 58, 47), Color.rgb(171, 224, 205), Color.rgb(225, 246, 237))
     )
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -56,13 +71,16 @@ class MainActivity : Activity() {
 
         section(root, "TEMA DAN WARNA")
         root.addView(TextView(this).apply {
-            text = "Pilih kombinasi warna huruf dan tombol"
+            text = "18 tema siap pakai + pilihan warna buatan sendiri"
             textSize = 13f
             setTextColor(Color.LTGRAY)
         })
+        val customName = "Warna Kustom"
+        val themeNames = palettes.map { it.name } + customName
+        val customIndex = palettes.size
         val spinner = Spinner(this).apply {
-            adapter = ArrayAdapter(this@MainActivity, android.R.layout.simple_spinner_dropdown_item, palettes.map { it.name })
-            setSelection(palettes.indexOfFirst { it.name == prefs.getString("palette", "Hitam Cyan") }.coerceAtLeast(0))
+            adapter = ArrayAdapter(this@MainActivity, android.R.layout.simple_spinner_dropdown_item, themeNames)
+            setSelection(themeNames.indexOf(prefs.getString("palette", "Hitam Cyan")).coerceAtLeast(0))
         }
         root.addView(spinner, LinearLayout.LayoutParams(-1, dp(52)))
 
@@ -75,21 +93,34 @@ class MainActivity : Activity() {
         }
         root.addView(preview, LinearLayout.LayoutParams(-1, dp(62)))
         val contrastHint = TextView(this).apply {
-            text = "Pratinjau warna • Kombinasi disiapkan agar tulisan tetap terbaca"
+            text = "Pratinjau warna • Warna tersimpan di perangkat"
             textSize = 11f
             setTextColor(Color.LTGRAY)
             setPadding(0, dp(7), 0, 0)
         }
         root.addView(contrastHint)
 
+        fun refreshPreview() {
+            val text = prefs.getInt("textColor", Color.WHITE)
+            val key = prefs.getInt("keyColor", Color.rgb(37, 55, 70))
+            preview.setTextColor(text)
+            preview.setBackgroundColor(key)
+        }
         fun applyPalette(index: Int) {
-            val p = palettes[index]
-            preview.setTextColor(p.text)
-            preview.setBackgroundColor(p.key)
-            prefs.edit().putString("palette", p.name)
-                .putInt("textColor", p.text)
-                .putInt("keyColor", p.key)
-                .putInt("backgroundColor", p.background).apply()
+            if (index == customIndex) {
+                prefs.edit().putString("palette", customName).apply()
+                if (!prefs.contains("textColor")) prefs.edit().putInt("textColor", Color.WHITE).apply()
+                if (!prefs.contains("keyColor")) prefs.edit().putInt("keyColor", Color.rgb(37, 55, 70)).apply()
+                if (!prefs.contains("backgroundColor")) prefs.edit().putInt("backgroundColor", Color.rgb(17, 28, 39)).apply()
+                refreshPreview()
+            } else {
+                val p = palettes[index]
+                prefs.edit().putString("palette", p.name)
+                    .putInt("textColor", p.text)
+                    .putInt("keyColor", p.key)
+                    .putInt("backgroundColor", p.background).apply()
+                refreshPreview()
+            }
         }
         applyPalette(spinner.selectedItemPosition)
         spinner.onItemSelectedListener = object : android.widget.AdapterView.OnItemSelectedListener {
@@ -99,6 +130,35 @@ class MainActivity : Activity() {
             }
         }
 
+        fun editCustomColor(label: String, preferenceKey: String) {
+            val current = prefs.getInt(preferenceKey, Color.WHITE)
+            val hex = String.format("#%06X", 0xFFFFFF and current)
+            val input = EditText(this).apply {
+                hint = "#RRGGBB"
+                setSingleLine(true)
+                setText(hex)
+                setSelection(text.length)
+            }
+            android.app.AlertDialog.Builder(this)
+                .setTitle(label)
+                .setMessage("Masukkan kode warna HEX, contoh: #00D9FF")
+                .setView(input)
+                .setPositiveButton("Simpan") { _, _ ->
+                    try {
+                        val color = Color.parseColor(input.text.toString().trim())
+                        prefs.edit().putInt(preferenceKey, color).putString("palette", customName).apply()
+                        spinner.setSelection(customIndex)
+                        refreshPreview()
+                    } catch (_: IllegalArgumentException) {
+                        Toast.makeText(this, "Kode warna tidak valid. Gunakan format #RRGGBB", Toast.LENGTH_LONG).show()
+                    }
+                }
+                .setNegativeButton("Batal", null)
+                .show()
+        }
+        addAction(root, "Ubah warna tulisan") { editCustomColor("Warna tulisan", "textColor") }
+        addAction(root, "Ubah warna tombol") { editCustomColor("Warna tombol", "keyColor") }
+        addAction(root, "Ubah warna latar keyboard") { editCustomColor("Warna latar keyboard", "backgroundColor") }
         section(root, "CLIPBOARD")
         addAction(root, "Kelola Kategori Sematan") {
             showCategoryManager()
