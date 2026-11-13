@@ -423,6 +423,7 @@ class KeyboarizImeService : InputMethodService() {
                     listOf(1.5f,1f,1f,1f,1f))
                 addRow(listOf("=\\<",",","SPACE",".","⌫","ABC"),
                     listOf(1.1f,0.65f,2.4f,0.65f,1.1f,1.1f))
+            }
         } else {
             addRow(listOf("q","w","e","r","t","y","u","i","o","p"))
             addRow(listOf("a","s","d","f","g","h","j","k","l"))
