@@ -396,7 +396,7 @@ class KeyboarizImeService : InputMethodService() {
                         }
                     } else {
                         setOnClickListener {
-                            if (label == "1+2" && numberMode && symbolPage == 2) {
+                            if ((label == "1+2" || label == "1 2 3 4") && numberMode) {
                                 symbolPage = 3
                                 setInputView(createKeyboardView())
                             } else {
@@ -419,7 +419,7 @@ class KeyboarizImeService : InputMethodService() {
                 addRow(listOf("@","#","$","_","&","-","+","(",")","/"))
                 addRow(listOf("=\\<","*","\\\"","'",":",";","!","?","⌫"),
                     listOf(1.25f,1f,1f,1f,1f,1f,1f,1f,1.4f))
-                addRow(listOf("ABC", ",", "1 2 3 4", "SPACE", ".", "↵"),
+                addRow(listOf("ABC", ",", "1+2", "SPACE", ".", "↵"),
                     listOf(1.3f,0.7f,1.2f,2.8f,0.7f,1.3f))
             } else if (symbolPage == 2) {
                 // Halaman simbol 2: jangan ubah, ini susunan Gboard yang sudah disetujui.
