@@ -5,6 +5,9 @@ on:
   push:
     branches: [ main ]
 
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -22,9 +25,10 @@ jobs:
           gradle-version: 8.9
       - name: Build optimized Release APK
         run: gradle --no-daemon :app:assembleRelease
-      - name: Upload APK
-        uses: actions/upload-artifact@v4
+      - name: Publish APK to GitHub Releases
+        uses: softprops/action-gh-release@v2
         with:
-          name: KEYBOARIZ-X-Release
-          path: app/build/outputs/apk/release/*.apk
-          if-no-files-found: error
+          tag_name: keyboariz-x-${{ github.run_number }}
+          name: KEYBOARIZ X Release ${{ github.run_number }}
+          files: app/build/outputs/apk/release/*.apk
+          generate_release_notes: true
