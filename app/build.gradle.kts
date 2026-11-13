@@ -4,9 +4,16 @@ plugins {
 }
 
 val copyCustomKeySound by tasks.registering(Copy::class) {
-    from(rootProject.file("suara_ketik.ogg"))
+    val soundFiles = listOf(
+        "suara_ketik.ogg",
+        "suara_spasi.ogg",
+        "suara_enter.ogg",
+        "suara_shift.ogg",
+        "suara_hapus.ogg"
+    ).map { rootProject.file(it) }.filter { it.exists() }
+
+    from(soundFiles)
     into(layout.buildDirectory.dir("generated/customSound/res/raw"))
-    rename { "suara_ketik.ogg" }
 }
 
 android {
