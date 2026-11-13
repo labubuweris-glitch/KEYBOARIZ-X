@@ -91,7 +91,13 @@ class KeyboarizImeService : InputMethodService() {
     private fun playKeySound() {
         if (!prefs.getBoolean("keySoundEnabled", true) || !keySoundReady) return
         val volume = prefs.getInt("keySoundVolume", 65).coerceIn(0, 100) / 100f
-        if (volume > 0f) keySoundPool?.play(keySoundId, volume, volume, 1, 0, 1f)
+        if (volume > 0f) {
+            val streamId = keySoundPool?.play(keySoundId, volume, volume, 1, 0, 1f) ?: 0
+            if (streamId != 0) {
+                // Hentikan suara setelah 150 ms agar rekaman panjang terasa seperti klik singkat.
+                handler.postDelayed({ keySoundPool?.stop(streamId) }, 150L)
+            }
+        }
     }
 
     override fun onCreateInputView(): View = createKeyboardView()
