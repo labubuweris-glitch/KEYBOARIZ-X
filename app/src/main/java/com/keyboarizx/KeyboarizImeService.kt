@@ -743,6 +743,7 @@ class KeyboarizImeService : InputMethodService() {
     }
 
     private fun deleteOne() {
+        playKeySound()
         val connection = currentInputConnection ?: return
         val selected = connection.getSelectedText(0)
         if (!selected.isNullOrEmpty()) {
