@@ -30,6 +30,7 @@ class KeyboarizImeService : InputMethodService() {
     private var lastSelectionForCase: String? = null
     private var selectionCaseMode = 0
     private var numberMode = false
+    private var symbolPage = 1
     private var clipboardMode = false
     private var clipboardPage = 0 // 0 = riwayat, 1 = sematan
     private var selectedPinCategory: String? = null
@@ -404,13 +405,23 @@ class KeyboarizImeService : InputMethodService() {
         }
 
         if (numberMode) {
-            // Gboard-inspired number and symbol page.
-            addRow(listOf("1","2","3","4","5","6","7","8","9","0"))
-            addRow(listOf("@","#","$","%","&","-","+","(",")","/"))
-            addRow(listOf("*","\"","'",":",";","!","?","_","⌫"),
-                listOf(1f,1f,1f,1f,1f,1f,1f,1f,1.4f))
-            addRow(listOf("ABC", ",", "SPACE", ".", "↵"),
-                listOf(1.4f,0.8f,3.8f,0.8f,1.4f))
+            if (symbolPage == 1) {
+                // Halaman simbol utama: angka, tanda baca, dan simbol umum.
+                addRow(listOf("1","2","3","4","5","6","7","8","9","0"))
+                addRow(listOf("@","#","$","%","&","-","+","(",")","/"))
+                addRow(listOf("*","\"","'",":",";","!","?","_","⌫"),
+                    listOf(1f,1f,1f,1f,1f,1f,1f,1f,1.4f))
+                addRow(listOf("ABC", ",", "SPACE", ".", "↵"),
+                    listOf(1.4f,0.8f,3.8f,0.8f,1.4f))
+            } else {
+                // Halaman simbol tambahan, mengikuti pola dua halaman Gboard.
+                addRow(listOf("~","`","|","•","√","π","÷","×","§","Δ"))
+                addRow(listOf("£","¢","€","¥","^","°","=","{","}","\\"))
+                addRow(listOf("=\\<","%","©","®","™","✓","[","]","⌫"),
+                    listOf(1.25f,1f,1f,1f,1f,1f,1f,1f,1.4f))
+                addRow(listOf("ABC", ",", "SPACE", ".", "↵"),
+                    listOf(1.4f,0.8f,3.8f,0.8f,1.4f))
+            }
         } else {
             addRow(listOf("q","w","e","r","t","y","u","i","o","p"))
             addRow(listOf("a","s","d","f","g","h","j","k","l"))
@@ -605,11 +616,25 @@ class KeyboarizImeService : InputMethodService() {
             }
             "SPACE" -> connection.commitText(" ", 1)
             "?123" -> {
-                numberMode = true
+                if (numberMode && symbolPage == 2) {
+                    symbolPage = 1
+                } else {
+                    numberMode = true
+                    symbolPage = 1
+                }
                 setInputView(createKeyboardView())
+            }
+            "=\\<" -> {
+                if (numberMode) {
+                    symbolPage = if (symbolPage == 1) 2 else 1
+                    setInputView(createKeyboardView())
+                } else {
+                    connection.commitText(key, 1)
+                }
             }
             "ABC" -> {
                 numberMode = false
+                symbolPage = 1
                 setInputView(createKeyboardView())
             }
             else -> {
