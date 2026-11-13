@@ -10,6 +10,8 @@ import android.view.Gravity
 import android.view.inputmethod.InputMethodManager
 import android.provider.Settings
 import android.widget.*
+import org.json.JSONArray
+import org.json.JSONObject
 
 class MainActivity : Activity() {
     private val prefs by lazy { getSharedPreferences("keyboard_settings", Context.MODE_PRIVATE) }
@@ -97,6 +99,11 @@ class MainActivity : Activity() {
             }
         }
 
+        section(root, "CLIPBOARD")
+        addAction(root, "Kelola Kategori Sematan") {
+            showCategoryManager()
+        }
+
         section(root, "PENGATURAN LAINNYA")
         addAction(root, "Tentang KEYBOARIZ X") {
             android.app.AlertDialog.Builder(this)
@@ -111,6 +118,136 @@ class MainActivity : Activity() {
             setPadding(0, dp(16), 0, 0)
         })
         setContentView(ScrollView(this).apply { addView(root) })
+    }
+
+
+    private fun loadPinCategories(): LinkedHashMap<String, List<String>> {
+        val raw = prefs.getString("clipboard_pin_categories", null)
+        if (raw != null) {
+            return try {
+                val json = JSONObject(raw)
+                val result = linkedMapOf<String, List<String>>()
+                val keys = json.keys()
+                while (keys.hasNext()) {
+                    val name = keys.next()
+                    val array = json.optJSONArray(name) ?: JSONArray()
+                    result[name] = (0 until array.length()).mapNotNull { i ->
+                        array.optString(i).takeIf { it.isNotBlank() }
+                    }.distinct()
+                }
+                result
+            } catch (_: Exception) {
+                linkedMapOf()
+            }
+        }
+        val legacyRaw = prefs.getString("clipboard_pinned", null)
+        val legacy = try {
+            val array = if (legacyRaw == null) JSONArray() else JSONArray(legacyRaw)
+            (0 until array.length()).mapNotNull { i ->
+                array.optString(i).takeIf { it.isNotBlank() }
+            }.distinct()
+        } catch (_: Exception) { emptyList() }
+        val migrated = linkedMapOf<String, List<String>>()
+        if (legacy.isNotEmpty()) migrated["Belum Dikategorikan"] = legacy
+        savePinCategories(migrated)
+        prefs.edit().remove("clipboard_pinned").apply()
+        return migrated
+    }
+
+    private fun savePinCategories(categories: Map<String, List<String>>) {
+        val json = JSONObject()
+        categories.forEach { (name, items) ->
+            val array = JSONArray()
+            items.distinct().forEach { array.put(it) }
+            json.put(name, array)
+        }
+        prefs.edit().putString("clipboard_pin_categories", json.toString()).apply()
+    }
+
+    private fun showCategoryManager() {
+        fun refresh() {
+            val categories = loadPinCategories()
+            val labels = categories.map { (name, entries) -> "📁  " + name + "  (" + entries.size + " teks)" }.toMutableList()
+            labels.add("+ Buat kategori")
+            android.app.AlertDialog.Builder(this)
+                .setTitle("Kelola Kategori Sematan")
+                .setItems(labels.toTypedArray()) { _, which ->
+                    if (which == labels.lastIndex) showAddCategoryDialog { refresh() }
+                    else showCategoryActions(categories.keys.elementAt(which)) { refresh() }
+                }
+                .setNegativeButton("Tutup", null)
+                .show()
+        }
+        refresh()
+    }
+
+    private fun showAddCategoryDialog(onDone: () -> Unit) {
+        val input = EditText(this).apply { hint = "Nama kategori" }
+        android.app.AlertDialog.Builder(this)
+            .setTitle("Buat kategori")
+            .setView(input)
+            .setPositiveButton("Simpan") { _, _ ->
+                val name = input.text.toString().trim()
+                if (name.isNotEmpty()) {
+                    val categories = loadPinCategories().toMutableMap()
+                    if (categories.keys.any { it.equals(name, true) }) {
+                        Toast.makeText(this, "Kategori sudah ada", Toast.LENGTH_SHORT).show()
+                    } else {
+                        categories[name] = emptyList()
+                        savePinCategories(categories)
+                    }
+                    onDone()
+                }
+            }
+            .setNegativeButton("Batal", null)
+            .show()
+    }
+
+    private fun showCategoryActions(name: String, onDone: () -> Unit) {
+        android.app.AlertDialog.Builder(this)
+            .setTitle(name)
+            .setItems(arrayOf("Ubah nama", "Hapus kategori")) { _, which ->
+                if (which == 0) {
+                    val input = EditText(this).apply { setText(name) }
+                    android.app.AlertDialog.Builder(this)
+                        .setTitle("Ubah nama kategori")
+                        .setView(input)
+                        .setPositiveButton("Simpan") { _, _ ->
+                            val newName = input.text.toString().trim()
+                            if (newName.isNotEmpty() && newName != name) {
+                                val categories = loadPinCategories().toMutableMap()
+                                if (categories.keys.none { it.equals(newName, true) }) {
+                                    val entries = categories.remove(name).orEmpty()
+                                    categories[newName] = entries
+                                    savePinCategories(categories)
+                                } else {
+                                    Toast.makeText(this, "Nama kategori sudah ada", Toast.LENGTH_SHORT).show()
+                                }
+                            }
+                            onDone()
+                        }
+                        .setNegativeButton("Batal", null)
+                        .show()
+                } else {
+                    android.app.AlertDialog.Builder(this)
+                        .setTitle("Hapus kategori?")
+                        .setMessage("Teks di dalam kategori ini tidak akan dihapus. Teks akan dipindahkan ke Belum Dikategorikan.")
+                        .setPositiveButton("Hapus") { _, _ ->
+                            val categories = loadPinCategories().toMutableMap()
+                            val removed = categories.remove(name).orEmpty()
+                            if (removed.isNotEmpty()) {
+                                categories["Belum Dikategorikan"] =
+                                    (categories["Belum Dikategorikan"].orEmpty() + removed).distinct()
+                            }
+                            savePinCategories(categories)
+                            onDone()
+                        }
+                        .setNegativeButton("Batal", null)
+                        .show()
+                }
+            }
+            .setNegativeButton("Batal", null)
+            .show()
     }
 
     private fun section(root: LinearLayout, title: String) {
