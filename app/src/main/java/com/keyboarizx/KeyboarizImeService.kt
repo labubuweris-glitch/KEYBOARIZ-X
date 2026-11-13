@@ -395,7 +395,14 @@ class KeyboarizImeService : InputMethodService() {
                             false
                         }
                     } else {
-                        setOnClickListener { handleKey(label) }
+                        setOnClickListener {
+                            if (label == "1+2" && numberMode && symbolPage == 2) {
+                                symbolPage = 3
+                                setInputView(createKeyboardView())
+                            } else {
+                                handleKey(label)
+                            }
+                        }
                     }
                 }
                 val params = LinearLayout.LayoutParams(0, dp(48), weights[index])
@@ -420,7 +427,7 @@ class KeyboarizImeService : InputMethodService() {
                 addRow(listOf("£","¢","€","¥","^","°","=","{","}","\\"))
                 addRow(listOf("=\\<","%","©","®","™","✓","[","]","⌫"),
                     listOf(1.25f,1f,1f,1f,1f,1f,1f,1f,1.4f))
-                addRow(listOf("ABC", ",", "1 2 3 4", "SPACE", ".", "↵"),
+                addRow(listOf("ABC", ",", "1+2", "SPACE", ".", "↵"),
                     listOf(1.3f,0.7f,1.2f,2.8f,0.7f,1.3f))
             } else {
                 // Halaman 3: keypad angka bergaya kalkulator.
@@ -646,7 +653,7 @@ class KeyboarizImeService : InputMethodService() {
                     connection.commitText(key, 1)
                 }
             }
-            "1 2 3 4" -> {
+            "1+2" -> {
                 if (numberMode && symbolPage == 2) {
                     symbolPage = 3
                     setInputView(createKeyboardView())
