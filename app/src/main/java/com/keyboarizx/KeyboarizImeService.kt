@@ -485,7 +485,6 @@ class KeyboarizImeService : InputMethodService() {
     private fun removePinnedItem(item: String) {
         val categories = loadPinCategories()
         val updated = categories.mapValues { (_, values) -> values.filterNot { it == item } }
-            .filterValues { it.isNotEmpty() }
         savePinCategories(updated)
         val history = loadClipboardHistory().toMutableList()
         history.remove(item)
