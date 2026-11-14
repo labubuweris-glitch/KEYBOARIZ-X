@@ -396,29 +396,6 @@ class KeyboarizImeService : InputMethodService() {
             }
 
             scrollView.addView(itemsLayout)
-            scrollView.setOnTouchListener(object : View.OnTouchListener {
-                private var downX = 0f
-                private var downY = 0f
-                override fun onTouch(v: View, event: MotionEvent): Boolean {
-                    when (event.action) {
-                        MotionEvent.ACTION_DOWN -> {
-                            downX = event.x
-                            downY = event.y
-                        }
-                        MotionEvent.ACTION_UP -> {
-                            val dx = event.x - downX
-                            val dy = event.y - downY
-                            if (kotlin.math.abs(dx) > dp(70) && kotlin.math.abs(dx) > kotlin.math.abs(dy) * 1.4f) {
-                                clipboardPage = if (dx < 0) 1 else 0
-                                selectedPinCategory = null
-                                setInputView(createKeyboardView())
-                                return true
-                            }
-                        }
-                    }
-                    return false
-                }
-            })
             // Samakan tinggi panel Clipboard dengan area keyboard utama.
             // Daftar tetap dapat digulir di dalam panel, tanpa memperluas IME
             // hingga memenuhi hampir seluruh layar.
