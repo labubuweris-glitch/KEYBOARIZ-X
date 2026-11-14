@@ -419,8 +419,11 @@ class KeyboarizImeService : InputMethodService() {
                     return false
                 }
             })
+            // Samakan tinggi panel Clipboard dengan area keyboard utama.
+            // Daftar tetap dapat digulir di dalam panel, tanpa memperluas IME
+            // hingga memenuhi hampir seluruh layar.
             root.addView(scrollView, LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f
+                LinearLayout.LayoutParams.MATCH_PARENT, dp(170)
             ))
             return root
         }
