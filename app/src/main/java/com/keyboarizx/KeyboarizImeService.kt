@@ -148,7 +148,7 @@ class KeyboarizImeService : InputMethodService() {
             val values = if (customMode) loadRizboardButtons() else listOf(
                 "Brush212", "110188", "081094", "000", "11011988",
                 "083819473139", "Brush1933", "==========================",
-                ". can bisa login", ". kr aya otp"
+                ". can bisa login", ". kr aya otp", "@gmail.com", "1988"
             )
             val scroll = ScrollView(this)
             val content = LinearLayout(this).apply {
