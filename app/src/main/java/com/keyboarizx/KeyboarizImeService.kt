@@ -535,7 +535,7 @@ class KeyboarizImeService : InputMethodService() {
                 // Halaman simbol 1: pertahankan susunan yang sudah cocok dengan Gboard.
                 addRow(listOf("1","2","3","4","5","6","7","8","9","0"))
                 addRow(listOf("@","#","$","_","&","-","+","(",")","/"))
-                addRow(listOf("=\\<","*","\\\"","'",":",";","!","?","⌫"),
+                addRow(listOf("=\\<","*","\"","'",":",";","!","?","⌫"),
                     listOf(1.25f,1f,1f,1f,1f,1f,1f,1f,1.4f))
                 addRow(listOf("ABC", ",", "1+2", "SPACE", ".", "↵"),
                     listOf(1.3f,0.7f,1.2f,2.8f,0.7f,1.3f))
@@ -750,7 +750,7 @@ class KeyboarizImeService : InputMethodService() {
                 }
             }
             "SPACE", "SPACE_ICON" -> connection.commitText(" ", 1)
-            "BARIS_BARU" -> connection.commitText("\\n", 1)
+            "BARIS_BARU" -> connection.commitText("\n", 1)
             "?123" -> {
                 if (numberMode && symbolPage == 2) {
                     symbolPage = 1
