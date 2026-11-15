@@ -39,6 +39,7 @@ class KeyboarizImeService : InputMethodService() {
     private var numberMode = false
     private var symbolPage = 1
     private var clipboardMode = false
+    private var rizboardMode = false
     private var clipboardPage = 0 // 0 = riwayat, 1 = sematan
     private var selectedPinCategory: String? = null
     private var pendingPinItem: String? = null
@@ -108,6 +109,60 @@ class KeyboarizImeService : InputMethodService() {
             val params = LinearLayout.LayoutParams(0, dp(36), weight)
             params.setMargins(dp(2), dp(1), dp(2), dp(3))
             toolRow.addView(button, params)
+        }
+
+        if (rizboardMode) {
+            makeToolButton("RIZBOARD", 2.2f) { }
+            makeToolButton("✕", 0.7f) {
+                rizboardMode = false
+                setInputView(createKeyboardView())
+            }
+            root.addView(toolRow)
+            val values = loadRizboardButtons()
+            val scroll = ScrollView(this)
+            val content = LinearLayout(this).apply {
+                orientation = LinearLayout.VERTICAL
+                setPadding(0, dp(2), 0, dp(2))
+            }
+            if (values.isEmpty()) {
+                content.addView(TextView(this).apply {
+                    text = "Belum ada tombol custom. Tambahkan melalui aplikasi KEYBOARIZ X."
+                    textSize = 13f
+                    setTextColor(textColor)
+                    gravity = Gravity.CENTER
+                    setPadding(dp(12), dp(20), dp(12), dp(20))
+                })
+            } else {
+                values.chunked(3).forEach { group ->
+                    val row = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+                    group.forEach { value ->
+                        val key = Button(this).apply {
+                            text = if (value.length > 16) value.take(15) + "…" else value
+                            textSize = 13f
+                            isAllCaps = false
+                            minWidth = 0
+                            minimumWidth = 0
+                            maxLines = 1
+                            ellipsize = android.text.TextUtils.TruncateAt.END
+                            setSingleLine(true)
+                            setTextColor(textColor)
+                            background = KeyShapeDrawable(keyColor, keyShape, resources.displayMetrics.density)
+                            setPadding(dp(3), 0, dp(3), 0)
+                            setOnClickListener { currentInputConnection?.commitText(value, 1) }
+                        }
+                        row.addView(key, LinearLayout.LayoutParams(0, dp(46), 1f).apply {
+                            setMargins(dp(2), dp(2), dp(2), dp(2))
+                        })
+                    }
+                    repeat(3 - group.size) {
+                        row.addView(View(this), LinearLayout.LayoutParams(0, dp(46), 1f))
+                    }
+                    content.addView(row)
+                }
+            }
+            scroll.addView(content)
+            root.addView(scroll, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(170)))
+            return root
         }
 
         if (clipboardMode) {
@@ -342,9 +397,15 @@ class KeyboarizImeService : InputMethodService() {
             return root
         }
 
-        makeToolButton("▤  Clipboard", 1f) {
+        makeToolButton("▤ Clipboard", 1f) {
             captureCurrentClipboard()
             clipboardMode = true
+            rizboardMode = false
+            setInputView(createKeyboardView())
+        }
+        makeToolButton("RIZBOARD", 1f) {
+            clipboardMode = false
+            rizboardMode = true
             setInputView(createKeyboardView())
         }
         root.addView(toolRow)
@@ -501,6 +562,15 @@ class KeyboarizImeService : InputMethodService() {
                 listOf(1.4f,0.8f,3.8f,0.8f,1.4f))
         }
         return root
+    }
+
+
+    private fun loadRizboardButtons(): List<String> {
+        val raw = prefs.getString("rizboard_custom_buttons", null) ?: return emptyList()
+        return try {
+            val json = JSONArray(raw)
+            (0 until json.length()).mapNotNull { i -> json.optString(i).takeIf { it.isNotEmpty() } }.distinct()
+        } catch (_: Exception) { emptyList() }
     }
 
     private fun loadClipboardHistory(): List<String> {
