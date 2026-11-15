@@ -9,7 +9,6 @@ import android.graphics.Typeface
 import android.graphics.Canvas
 import android.graphics.Paint
 import android.graphics.Path
-import android.graphics.Movie
 import android.graphics.RectF
 import android.graphics.drawable.Drawable
 import android.graphics.drawable.GradientDrawable
@@ -685,48 +684,25 @@ class KeyboarizImeService : InputMethodService() {
             addRow(listOf("?123", ",", "SPACE", ".", "↵"),
                 listOf(1.4f,0.8f,3.8f,0.8f,1.4f))
         }
-        // GIF opsional digambar melalui overlay agar tidak mengubah tinggi keyboard.
-        // Default-nya nonaktif sampai pengguna memilih GIF dari galeri.
-        if (!numberMode && prefs.getBoolean("custom_gif_enabled", false)) {
-            prefs.getString("custom_gif_uri", null)?.let { withCustomGifOverlay(root, it) }
-        }
+        // Karakter semut digambar sebagai overlay transparan; ukuran keyboard tidak berubah.
+        if (!numberMode) withAntOverlay(root)
         return root
     }
 
-    private fun withHummingbirdOverlay(keyboard: View) {
+    private fun withAntOverlay(keyboard: View) {
         val group = keyboard as? ViewGroup ?: return
-        val bird = HummingbirdOverlayView(this)
-        group.overlay.add(bird)
+        val ant = AntOverlayView(this)
+        group.overlay.add(ant)
 
         fun fitOverlay() {
             val w = group.width
             val h = group.height
             if (w <= 0 || h <= 0) return
-            bird.measure(
+            ant.measure(
                 View.MeasureSpec.makeMeasureSpec(w, View.MeasureSpec.EXACTLY),
                 View.MeasureSpec.makeMeasureSpec(h, View.MeasureSpec.EXACTLY)
             )
-            bird.layout(0, 0, w, h)
-        }
-
-        group.addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ -> fitOverlay() }
-        group.post { fitOverlay() }
-    }
-
-    private fun withCustomGifOverlay(keyboard: View, uriText: String) {
-        val group = keyboard as? ViewGroup ?: return
-        val gifView = CustomGifOverlayView.create(this, uriText) ?: return
-        group.overlay.add(gifView)
-
-        fun fitOverlay() {
-            val w = group.width
-            val h = group.height
-            if (w <= 0 || h <= 0) return
-            gifView.measure(
-                View.MeasureSpec.makeMeasureSpec(w, View.MeasureSpec.EXACTLY),
-                View.MeasureSpec.makeMeasureSpec(h, View.MeasureSpec.EXACTLY)
-            )
-            gifView.layout(0, 0, w, h)
+            ant.layout(0, 0, w, h)
         }
 
         group.addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ -> fitOverlay() }
@@ -1141,21 +1117,23 @@ class KeyboarizImeService : InputMethodService() {
 }
 
 /**
- * A lightweight, touch-through hummingbird animation drawn directly on Canvas.
- * It uses no image assets, network access, or continuous background work when detached.
+ * Tiny ant character drawn directly on a transparent, touch-through keyboard overlay.
+ * No image/GIF assets are used and keyboard measurement remains unchanged.
  */
-private class HummingbirdOverlayView(context: Context) : View(context) {
+private class AntOverlayView(context: Context) : View(context) {
     private val density = resources.displayMetrics.density
     private val bodyPaint = Paint(Paint.ANTI_ALIAS_FLAG)
-    private val wingPaint = Paint(Paint.ANTI_ALIAS_FLAG)
-    private val darkPaint = Paint(Paint.ANTI_ALIAS_FLAG)
-    private val shinePaint = Paint(Paint.ANTI_ALIAS_FLAG)
-    private val throatPaint = Paint(Paint.ANTI_ALIAS_FLAG)
-    private val beakPaint = Paint(Paint.ANTI_ALIAS_FLAG)
-    private val body = RectF()
-    private val wing = Path()
-    private val tail = Path()
-    private val startTime = android.os.SystemClock.uptimeMillis()
+    private val legPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        style = Paint.Style.STROKE
+        strokeCap = Paint.Cap.ROUND
+        strokeJoin = Paint.Join.ROUND
+    }
+    private val detailPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        style = Paint.Style.STROKE
+        strokeCap = Paint.Cap.ROUND
+    }
+    private val shape = RectF()
+    private val startedAt = android.os.SystemClock.uptimeMillis()
     private val frame = object : Runnable {
         override fun run() {
             if (!isAttachedToWindow) return
@@ -1186,145 +1164,97 @@ private class HummingbirdOverlayView(context: Context) : View(context) {
         super.onDraw(canvas)
         if (width <= 0 || height <= 0) return
 
-        val elapsed = (android.os.SystemClock.uptimeMillis() - startTime) % 12800L
-        val birdWidth = 35f * density
-        val birdHeight = 25f * density
-
-        // Gerakan natural: banyak melayang stabil, diselingi perpindahan singkat.
-        val x: Float
-        val direction: Float
-        val bank: Float
-        val travel: Float
-        val hoverPhase: Float
-        fun smooth(t: Float): Float {
-            val p = t.coerceIn(0f, 1f)
+        val elapsed = (android.os.SystemClock.uptimeMillis() - startedAt) % 13200L
+        fun smooth(value: Float): Float {
+            val p = value.coerceIn(0f, 1f)
             return p * p * (3f - 2f * p)
         }
+
+        val x: Float
+        val facing: Float
+        val walking: Float
         when {
-            elapsed < 1800L -> {
-                hoverPhase = elapsed / 1000f
-                x = width * 0.18f + kotlin.math.sin(hoverPhase * 1.1f).toFloat() * birdWidth * 0.035f
-                direction = 1f
-                bank = 0f
-                travel = 0f
+            elapsed < 2600L -> {
+                x = width * (0.12f + 0.25f * smooth(elapsed / 2600f))
+                facing = 1f
+                walking = 1f
             }
-            elapsed < 3400L -> {
-                val p = smooth((elapsed - 1800L) / 1600f)
-                x = width * (0.18f + 0.54f * p)
-                direction = 1f
-                bank = (kotlin.math.sin(p * Math.PI).toFloat() * 7f)
-                travel = kotlin.math.sin(p * Math.PI).toFloat()
-                hoverPhase = 0f
+            elapsed < 4100L -> {
+                x = width * 0.37f
+                facing = 1f
+                walking = 0.12f
             }
-            elapsed < 5600L -> {
-                hoverPhase = (elapsed - 3400L) / 1000f
-                x = width * 0.72f + kotlin.math.sin(hoverPhase * 1.0f).toFloat() * birdWidth * 0.035f
-                direction = 1f
-                bank = 0f
-                travel = 0f
+            elapsed < 7000L -> {
+                x = width * (0.37f + 0.47f * smooth((elapsed - 4100L) / 2900f))
+                facing = 1f
+                walking = 1f
             }
-            elapsed < 6900L -> {
-                val p = smooth((elapsed - 5600L) / 1300f)
-                x = width * (0.72f - 0.14f * p)
-                direction = -1f
-                bank = -kotlin.math.sin(p * Math.PI).toFloat() * 6f
-                travel = kotlin.math.sin(p * Math.PI).toFloat()
-                hoverPhase = 0f
-            }
-            elapsed < 8200L -> {
-                hoverPhase = (elapsed - 6900L) / 1000f
-                x = width * 0.58f + kotlin.math.sin(hoverPhase * 1.1f).toFloat() * birdWidth * 0.03f
-                direction = 1f
-                bank = 0f
-                travel = 0f
-            }
-            elapsed < 9800L -> {
-                val p = smooth((elapsed - 8200L) / 1600f)
-                x = width * (0.58f - 0.40f * p)
-                direction = -1f
-                bank = -kotlin.math.sin(p * Math.PI).toFloat() * 7f
-                travel = kotlin.math.sin(p * Math.PI).toFloat()
-                hoverPhase = 0f
+            elapsed < 8500L -> {
+                x = width * 0.84f
+                facing = 1f
+                walking = 0.10f
             }
             else -> {
-                hoverPhase = (elapsed - 9800L) / 1000f
-                x = width * 0.18f + kotlin.math.sin(hoverPhase * 1.0f).toFloat() * birdWidth * 0.035f
-                direction = 1f
-                bank = 0f
-                travel = 0f
+                x = width * (0.84f - 0.72f * smooth((elapsed - 8500L) / 4700f))
+                facing = -1f
+                walking = 1f
             }
         }
 
-        val flap = kotlin.math.sin(elapsed / 42.0).toFloat()
-        // Saat melayang, badan hampir diam; saat berpindah, ada lengkungan kecil.
-        val hoverBob = kotlin.math.sin(hoverPhase * 2.0).toFloat() * height * 0.012f
-        val travelArc = -travel * height * 0.045f
-        val y = (height * 0.52f + hoverBob + travelArc)
-            .coerceIn(birdHeight * 0.9f, height - birdHeight * 0.9f)
+        val antW = 29f * density
+        val antH = 19f * density
+        val phase = elapsed / 82f
+        val step = kotlin.math.sin(phase).toFloat() * walking
+        val bob = kotlin.math.abs(kotlin.math.sin(phase * 2f)).toFloat() * 0.8f * density * walking
+        val y = height * 0.56f + bob
 
         canvas.save()
         canvas.translate(x, y)
-        if (direction < 0f) canvas.scale(-1f, 1f)
-        canvas.rotate(bank * direction)
+        if (facing < 0f) canvas.scale(-1f, 1f)
+        canvas.rotate(step * 1.1f)
 
-        // Badan mungil hijau zamrud dengan gradasi sederhana.
+        legPaint.color = Color.rgb(47, 29, 24)
+        legPaint.strokeWidth = 1.35f * density
+        val anchors = floatArrayOf(-0.13f, 0.00f, 0.14f)
+        for (i in anchors.indices) {
+            val swing = kotlin.math.sin(phase + i * 2.1f).toFloat() * 3.2f * density * walking
+            val ax = anchors[i] * antW
+            val side = if (i % 2 == 0) 1f else -1f
+            val hipY = 1.0f * density
+            canvas.drawLine(ax, hipY, ax - 3f * density + swing, hipY + side * 4.2f * density, legPaint)
+            canvas.drawLine(ax - 3f * density + swing, hipY + side * 4.2f * density,
+                ax - 5f * density + swing, hipY + side * 7f * density, legPaint)
+            canvas.drawLine(ax, hipY, ax + 3f * density - swing, hipY - side * 4.2f * density, legPaint)
+            canvas.drawLine(ax + 3f * density - swing, hipY - side * 4.2f * density,
+                ax + 5f * density - swing, hipY - side * 7f * density, legPaint)
+        }
+
+        detailPaint.color = Color.rgb(51, 32, 26)
+        detailPaint.strokeWidth = 1.1f * density
+        canvas.drawLine(antW * 0.22f, -antH * 0.20f, antW * 0.31f, -antH * 0.48f, detailPaint)
+        canvas.drawLine(antW * 0.31f, -antH * 0.48f, antW * 0.43f, -antH * 0.52f, detailPaint)
+        canvas.drawLine(antW * 0.25f, -antH * 0.18f, antW * 0.39f, -antH * 0.35f, detailPaint)
+        canvas.drawLine(antW * 0.39f, -antH * 0.35f, antW * 0.49f, -antH * 0.34f, detailPaint)
+
         bodyPaint.shader = android.graphics.LinearGradient(
-            0f, -birdHeight * 0.35f, 0f, birdHeight * 0.55f,
-            intArrayOf(Color.rgb(80, 190, 133), Color.rgb(20, 105, 78), Color.rgb(8, 57, 52)),
+            0f, -antH * 0.45f, 0f, antH * 0.55f,
+            intArrayOf(Color.rgb(103, 66, 48), Color.rgb(44, 28, 23), Color.rgb(18, 14, 14)),
             null, android.graphics.Shader.TileMode.CLAMP
         )
-        body.set(-birdWidth * 0.31f, -birdHeight * 0.24f,
-            birdWidth * 0.28f, birdHeight * 0.25f)
-        canvas.drawOval(body, bodyPaint)
+        shape.set(-antW * 0.48f, -antH * 0.30f, -antW * 0.10f, antH * 0.30f)
+        canvas.drawOval(shape, bodyPaint)
         bodyPaint.shader = null
 
-        // Dada berkilau dan kepala.
-        throatPaint.color = Color.rgb(70, 220, 170)
-        body.set(-birdWidth * 0.12f, -birdHeight * 0.02f,
-            birdWidth * 0.17f, birdHeight * 0.20f)
-        canvas.drawOval(body, throatPaint)
+        bodyPaint.color = Color.rgb(37, 24, 20)
+        shape.set(-antW * 0.12f, -antH * 0.12f, antW * 0.16f, antH * 0.14f)
+        canvas.drawOval(shape, bodyPaint)
+        bodyPaint.color = Color.rgb(53, 32, 25)
+        canvas.drawCircle(antW * 0.25f, -antH * 0.10f, antH * 0.30f, bodyPaint)
 
-        bodyPaint.color = Color.rgb(24, 142, 99)
-        canvas.drawCircle(birdWidth * 0.18f, -birdHeight * 0.24f, birdHeight * 0.23f, bodyPaint)
-
-        // Sayap mengepak cepat; sudut berubah tiap frame.
-        wing.reset()
-        val wingLift = flap * birdHeight * 0.42f
-        wing.moveTo(-birdWidth * 0.02f, -birdHeight * 0.08f)
-        wing.cubicTo(-birdWidth * 0.23f, -birdHeight * 0.52f - wingLift,
-            -birdWidth * 0.48f, -birdHeight * 0.55f - wingLift,
-            -birdWidth * 0.34f, -birdHeight * 0.03f)
-        wing.cubicTo(-birdWidth * 0.24f, birdHeight * 0.04f,
-            -birdWidth * 0.10f, birdHeight * 0.02f,
-            -birdWidth * 0.02f, -birdHeight * 0.08f)
-        wing.close()
-        wingPaint.color = Color.argb(210, 102, 194, 164)
-        canvas.drawPath(wing, wingPaint)
-
-        // Ekor runcing.
-        tail.reset()
-        tail.moveTo(-birdWidth * 0.25f, birdHeight * 0.03f)
-        tail.lineTo(-birdWidth * 0.55f, birdHeight * 0.27f)
-        tail.lineTo(-birdWidth * 0.30f, birdHeight * 0.17f)
-        tail.lineTo(-birdWidth * 0.18f, birdHeight * 0.12f)
-        tail.close()
-        darkPaint.color = Color.rgb(18, 91, 72)
-        canvas.drawPath(tail, darkPaint)
-
-        // Paruh panjang khas kolibri.
-        beakPaint.color = Color.rgb(35, 38, 34)
-        beakPaint.strokeWidth = 1.7f * density
-        beakPaint.strokeCap = Paint.Cap.ROUND
-        canvas.drawLine(birdWidth * 0.32f, -birdHeight * 0.22f,
-            birdWidth * 0.67f, -birdHeight * 0.17f, beakPaint)
-
-        // Mata kecil dan kilau bulu.
-        darkPaint.color = Color.rgb(12, 25, 22)
-        canvas.drawCircle(birdWidth * 0.23f, -birdHeight * 0.29f, 1.35f * density, darkPaint)
-        shinePaint.color = Color.argb(190, 220, 255, 235)
-        canvas.drawCircle(birdWidth * 0.24f, -birdHeight * 0.31f, 0.48f * density, shinePaint)
-        canvas.drawLine(-birdWidth * 0.18f, -birdHeight * 0.12f,
-            birdWidth * 0.02f, -birdHeight * 0.16f, shinePaint)
+        bodyPaint.color = Color.rgb(10, 9, 9)
+        canvas.drawCircle(antW * 0.34f, -antH * 0.16f, 1.0f * density, bodyPaint)
+        bodyPaint.color = Color.argb(190, 245, 220, 194)
+        canvas.drawCircle(antW * 0.35f, -antH * 0.19f, 0.35f * density, bodyPaint)
 
         canvas.restore()
     }
@@ -1439,86 +1369,4 @@ private class KeyShapeDrawable(
     override fun setColorFilter(colorFilter: ColorFilter?) { paint.colorFilter = colorFilter }
     @Deprecated("Deprecated in Java")
     override fun getOpacity(): Int = PixelFormat.TRANSLUCENT
-}
-
-
-/**
- * GIF transparan opsional dari galeri. Ukuran dibatasi 56dp dan hanya digambar
- * di dalam batas keyboard; overlay tidak menerima sentuhan sehingga tombol tetap aktif.
- */
-private class CustomGifOverlayView private constructor(
-    context: Context,
-    private val movie: Movie
-) : View(context) {
-    private val density = resources.displayMetrics.density
-    private val maxSize = 42f * density
-    private val startedAt = android.os.SystemClock.uptimeMillis()
-    private val frame = object : Runnable {
-        override fun run() {
-            if (!isAttachedToWindow) return
-            invalidate()
-            postDelayed(this, 40L)
-        }
-    }
-
-    init {
-        isClickable = false
-        isFocusable = false
-        importantForAccessibility = IMPORTANT_FOR_ACCESSIBILITY_NO
-        setWillNotDraw(false)
-    }
-
-    override fun onAttachedToWindow() {
-        super.onAttachedToWindow()
-        removeCallbacks(frame)
-        post(frame)
-    }
-
-    override fun onDetachedFromWindow() {
-        removeCallbacks(frame)
-        super.onDetachedFromWindow()
-    }
-
-    override fun onDraw(canvas: Canvas) {
-        super.onDraw(canvas)
-        if (width <= 0 || height <= 0 || movie.width() <= 0 || movie.height() <= 0) return
-
-        val duration = movie.duration().coerceAtLeast(1000)
-        movie.setTime(((android.os.SystemClock.uptimeMillis() - startedAt) % duration).toInt())
-
-        val scale = minOf(maxSize / movie.width(), maxSize / movie.height())
-        val drawWidth = movie.width() * scale
-        val drawHeight = movie.height() * scale
-        // Semut berjalan melintasi baris tombol, lalu berbalik arah.
-        // Posisi dihitung dari waktu agar gerakan tetap halus tanpa mengubah layout keyboard.
-        val animationAreaHeight = minOf(height.toFloat(), 260f * density)
-        val elapsed = (android.os.SystemClock.uptimeMillis() - startedAt) % 10000L
-        val progress = elapsed / 10000f
-        val wave = (1f - kotlin.math.abs(2f * progress - 1f))
-        val left = (width - drawWidth) * (0.08f + 0.84f * wave)
-        val centerY = animationAreaHeight * 0.62f +
-            kotlin.math.sin(progress * Math.PI * 4.0).toFloat() * 5f * density
-        val top = (centerY - drawHeight / 2f).coerceIn(0f, animationAreaHeight - drawHeight)
-
-        val save = canvas.save()
-        canvas.clipRect(0f, 0f, width.toFloat(), animationAreaHeight)
-        canvas.translate(left, top)
-        canvas.scale(scale, scale)
-        movie.draw(canvas, 0f, 0f)
-        canvas.restoreToCount(save)
-    }
-
-    companion object {
-        fun create(context: Context, uriText: String): CustomGifOverlayView? {
-            return try {
-                val uri = android.net.Uri.parse(uriText)
-                val stream = context.contentResolver.openInputStream(uri) ?: return null
-                val movie = stream.use { Movie.decodeStream(it) } ?: return null
-                if (movie.width() <= 0 || movie.height() <= 0) null
-                else CustomGifOverlayView(context, movie)
-            } catch (_: Exception) {
-                null
-            }
-        }
-    }
 }
