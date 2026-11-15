@@ -19,6 +19,7 @@ import android.text.InputType
 import android.view.Gravity
 import android.view.MotionEvent
 import android.view.View
+import android.view.ViewGroup
 import android.view.inputmethod.EditorInfo
 import android.view.inputmethod.ExtractedTextRequest
 import java.util.Locale
@@ -180,7 +181,9 @@ class KeyboarizImeService : InputMethodService() {
             addRizboardSection("BAWAAN", builtInValues)
             addRizboardSection("CUSTOM", customValues)
             scroll.addView(content)
-            root.addView(scroll, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(170)))
+            // Panel mengisi sisa ruang dalam tinggi halaman standar (260dp), sama seperti ABC dan Simbol.
+            root.layoutParams = ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(260))
+            root.addView(scroll, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f))
             return root
         }
 
@@ -237,8 +240,7 @@ class KeyboarizImeService : InputMethodService() {
             }
 
             fun addClipboardItem(item: String, pinnedItem: Boolean, category: String?) {
-                val itemButton = Button(this).apply {
-                    text = (if (pinnedItem) "📌  " else "") +
+                val itemButton = Button(this).apply {                    text = (if (pinnedItem) "📌  " else "") +
                         if (item.length > 180) item.take(180) + "…" else item
                     textSize = 14f
                     gravity = Gravity.START or Gravity.CENTER_VERTICAL
@@ -410,8 +412,10 @@ class KeyboarizImeService : InputMethodService() {
             // Samakan tinggi panel Clipboard dengan area keyboard utama.
             // Daftar tetap dapat digulir di dalam panel, tanpa memperluas IME
             // hingga memenuhi hampir seluruh layar.
+            // Panel mengisi sisa ruang dalam tinggi halaman standar (260dp), sama seperti ABC dan Simbol.
+            root.layoutParams = ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(260))
             root.addView(scrollView, LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT, dp(170)
+                LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f
             ))
             return root
         }
@@ -517,8 +521,7 @@ class KeyboarizImeService : InputMethodService() {
                     } else {
                         // Proses tombol pada ACTION_DOWN agar input tidak menunggu jari diangkat.
                         setOnTouchListener { _, event ->
-                            when (event.actionMasked) {
-                                MotionEvent.ACTION_DOWN -> {
+                            when (event.actionMasked) {                                MotionEvent.ACTION_DOWN -> {
                                     if ((label == "1+2" || label == "1 2 3 4") && numberMode) {
                                         symbolPage = if (symbolPage == 3) 2 else 3
                                         setInputView(createKeyboardView())
@@ -796,8 +799,7 @@ class KeyboarizImeService : InputMethodService() {
                     connection.commitText(key, 1)
                 }
             }
-            "1+2" -> {
-                if (numberMode && symbolPage == 2) {
+            "1+2" -> {                if (numberMode && symbolPage == 2) {
                     symbolPage = 3
                     setInputView(createKeyboardView())
                 }
