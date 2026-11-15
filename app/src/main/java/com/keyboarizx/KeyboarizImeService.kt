@@ -41,6 +41,7 @@ class KeyboarizImeService : InputMethodService() {
     private var symbolPage = 1
     private var clipboardMode = false
     private var rizboardMode = false
+    private var customMode = false
     private var clipboardPage = 0 // 0 = riwayat, 1 = sematan
     private var selectedPinCategory: String? = null
     private var pendingPinItem: String? = null
@@ -114,45 +115,47 @@ class KeyboarizImeService : InputMethodService() {
             return button
         }
 
-        if (rizboardMode) {
-            makeToolButton("RIZBOARD", 1.5f) { }
-            makeToolButton("HAPUS", 1f) { deleteOne() }
-            rizboardEnterButton = makeToolButton(enterKeyLabel(), 1.5f) {
+        if (rizboardMode || customMode) {
+            makeToolButton("RIZBOARD", 1.25f) {
+                rizboardMode = true
+                customMode = false
+                setInputView(createKeyboardView())
+            }
+            makeToolButton("CUSTOM", 1.15f) {
+                rizboardMode = false
+                customMode = true
+                setInputView(createKeyboardView())
+            }
+            makeToolButton("HAPUS", 0.9f) { deleteOne() }
+            rizboardEnterButton = makeToolButton(enterKeyLabel(), 1.25f) {
                 performEnterAction()
             }
-            makeToolButton("✕", 0.6f) {
+            makeToolButton("✕", 0.55f) {
                 rizboardMode = false
+                customMode = false
                 setInputView(createKeyboardView())
             }
             root.addView(toolRow)
-            val builtInValues = listOf(
+
+            val values = if (customMode) loadRizboardButtons() else listOf(
                 "Brush212", "110188", "081094", "000", "11011988",
                 "083819473139", "Brush1933", "==========================",
                 ". can bisa login", ". kr aya otp"
             )
-            val customValues = loadRizboardButtons()
             val scroll = ScrollView(this)
             val content = LinearLayout(this).apply {
                 orientation = LinearLayout.VERTICAL
                 setPadding(0, dp(2), 0, dp(2))
             }
-            fun addRizboardSection(title: String, values: List<String>) {
+            if (values.isEmpty()) {
                 content.addView(TextView(this).apply {
-                    text = title
-                    textSize = 11f
-                    typeface = Typeface.DEFAULT_BOLD
-                    setTextColor(accentColor)
-                    setPadding(dp(4), dp(5), dp(4), dp(2))
+                    text = "Belum ada tombol custom. Tambahkan melalui aplikasi KEYBOARIZ X."
+                    textSize = 12f
+                    setTextColor(textColor)
+                    gravity = Gravity.CENTER
+                    setPadding(dp(12), dp(18), dp(12), dp(18))
                 })
-                if (values.isEmpty()) {
-                    content.addView(TextView(this).apply {
-                        text = "Belum ada tombol custom. Tambahkan melalui aplikasi KEYBOARIZ X."
-                        textSize = 12f
-                        setTextColor(textColor)
-                        setPadding(dp(6), dp(5), dp(6), dp(5))
-                    })
-                    return
-                }
+            } else {
                 values.chunked(3).forEach { group ->
                     val row = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
                     group.forEach { value ->
@@ -180,11 +183,8 @@ class KeyboarizImeService : InputMethodService() {
                     content.addView(row)
                 }
             }
-            addRizboardSection("BAWAAN", builtInValues)
-            addRizboardSection("CUSTOM", customValues)
             scroll.addView(content)
-            // Tinggi isi dibuat tetap agar ScrollView tidak melebar mengikuti tinggi layar IME.
-            // 208dp + toolbar 40dp + padding root 12dp = total 260dp.
+            // Isi 208dp + toolbar 40dp + padding root 12dp = total 260dp.
             root.addView(scroll, LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT, dp(208)
             ))
@@ -430,6 +430,7 @@ class KeyboarizImeService : InputMethodService() {
         makeToolButton("RIZBOARD", 1f) {
             clipboardMode = false
             rizboardMode = true
+            customMode = false
             setInputView(createKeyboardView())
         }
         root.addView(toolRow)
