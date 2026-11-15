@@ -1451,7 +1451,7 @@ private class CustomGifOverlayView private constructor(
     private val movie: Movie
 ) : View(context) {
     private val density = resources.displayMetrics.density
-    private val maxSize = 56f * density
+    private val maxSize = 42f * density
     private val startedAt = android.os.SystemClock.uptimeMillis()
     private val frame = object : Runnable {
         override fun run() {
@@ -1489,10 +1489,16 @@ private class CustomGifOverlayView private constructor(
         val scale = minOf(maxSize / movie.width(), maxSize / movie.height())
         val drawWidth = movie.width() * scale
         val drawHeight = movie.height() * scale
-        val left = (width - drawWidth) / 2f
-        // Area animasi dibatasi maksimal 260dp, bukan satu layar penuh.
+        // Semut berjalan melintasi baris tombol, lalu berbalik arah.
+        // Posisi dihitung dari waktu agar gerakan tetap halus tanpa mengubah layout keyboard.
         val animationAreaHeight = minOf(height.toFloat(), 260f * density)
-        val top = (animationAreaHeight - drawHeight) / 2f
+        val elapsed = (android.os.SystemClock.uptimeMillis() - startedAt) % 10000L
+        val progress = elapsed / 10000f
+        val wave = (1f - kotlin.math.abs(2f * progress - 1f))
+        val left = (width - drawWidth) * (0.08f + 0.84f * wave)
+        val centerY = animationAreaHeight * 0.62f +
+            kotlin.math.sin(progress * Math.PI * 4.0).toFloat() * 5f * density
+        val top = (centerY - drawHeight / 2f).coerceIn(0f, animationAreaHeight - drawHeight)
 
         val save = canvas.save()
         canvas.clipRect(0f, 0f, width.toFloat(), animationAreaHeight)
