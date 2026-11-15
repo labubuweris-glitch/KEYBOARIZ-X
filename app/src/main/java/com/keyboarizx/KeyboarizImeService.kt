@@ -118,7 +118,12 @@ class KeyboarizImeService : InputMethodService() {
                 setInputView(createKeyboardView())
             }
             root.addView(toolRow)
-            val values = loadRizboardButtons()
+            val builtInValues = listOf(
+                "Brush212", "110188", "081094", "000", "11011988",
+                "083819473139", "Brush1933", "==========================",
+                ". can bisa login", ". kr aya otp"
+            )
+            val values = builtInValues + loadRizboardButtons()
             val scroll = ScrollView(this)
             val content = LinearLayout(this).apply {
                 orientation = LinearLayout.VERTICAL
