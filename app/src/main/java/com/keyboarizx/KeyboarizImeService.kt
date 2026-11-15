@@ -629,7 +629,7 @@ class KeyboarizImeService : InputMethodService() {
                 addRow(listOf("@","#","$","_","&","-","+","(",")","/"))
                 addRow(listOf("=\\<","*","\"","'",":",";","!","?","⌫"),
                     listOf(1.25f,1f,1f,1f,1f,1f,1f,1f,1.4f))
-                addRow(listOf("ABC", ",", "1+2", "SPACE", ".", "↵"),
+                addRow(listOf("ABC", ",", "⚙", "SPACE", ".", "↵"),
                     listOf(1.3f,0.7f,1.2f,2.8f,0.7f,1.3f))
             } else if (symbolPage == 2) {
                 // Halaman simbol 2: jangan ubah, ini susunan Gboard yang sudah disetujui.
@@ -637,7 +637,7 @@ class KeyboarizImeService : InputMethodService() {
                 addRow(listOf("£","¢","€","¥","^","°","=","{","}","\\"))
                 addRow(listOf("=\\<","%","©","®","™","✓","[","]","⌫"),
                     listOf(1.25f,1f,1f,1f,1f,1f,1f,1f,1.4f))
-                addRow(listOf("ABC", ",", "1+2", "SPACE", ".", "↵"),
+                addRow(listOf("ABC", ",", "⚙", "SPACE", ".", "↵"),
                     listOf(1.3f,0.7f,1.2f,2.8f,0.7f,1.3f))
             } else {
                 // Halaman 3: Number Pad ala Gboard.
@@ -945,6 +945,15 @@ class KeyboarizImeService : InputMethodService() {
                     setInputView(createKeyboardView())
                 } else {
                     connection.commitText(key, 1)
+                }
+            }
+            "⚙" -> {
+                val settingsIntent = packageManager.getLaunchIntentForPackage(packageName)
+                settingsIntent?.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                if (settingsIntent != null) {
+                    startActivity(settingsIntent)
+                } else {
+                    Toast.makeText(this, "Pengaturan KEYBOARIZ X tidak ditemukan", Toast.LENGTH_SHORT).show()
                 }
             }
             "1+2" -> {                if (numberMode && symbolPage == 2) {
