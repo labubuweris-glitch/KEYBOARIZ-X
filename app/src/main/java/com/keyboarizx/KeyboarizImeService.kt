@@ -432,25 +432,28 @@ class KeyboarizImeService : InputMethodService() {
             return root
         }
 
-        makeToolButton("▤ Clipboard", 1f, clipboardBorder) {
-            captureCurrentClipboard()
-            clipboardMode = true
-            rizboardMode = false
-            setInputView(createKeyboardView())
+        // Number Pad halaman 3 tidak menampilkan shortcut Clipboard, RIZBOARD, dan CUSTOM.
+        if (!(numberMode && symbolPage == 3)) {
+            makeToolButton("▤ Clipboard", 1f, clipboardBorder) {
+                captureCurrentClipboard()
+                clipboardMode = true
+                rizboardMode = false
+                setInputView(createKeyboardView())
+            }
+            makeToolButton("RIZBOARD", 1f, rizboardBorder) {
+                clipboardMode = false
+                rizboardMode = true
+                customMode = false
+                setInputView(createKeyboardView())
+            }
+            makeToolButton("CUSTOM", 1f, customBorder) {
+                clipboardMode = false
+                rizboardMode = false
+                customMode = true
+                setInputView(createKeyboardView())
+            }
+            root.addView(toolRow)
         }
-        makeToolButton("RIZBOARD", 1f, rizboardBorder) {
-            clipboardMode = false
-            rizboardMode = true
-            customMode = false
-            setInputView(createKeyboardView())
-        }
-        makeToolButton("CUSTOM", 1f, customBorder) {
-            clipboardMode = false
-            rizboardMode = false
-            customMode = true
-            setInputView(createKeyboardView())
-        }
-        root.addView(toolRow)
 
         var keyboardRowIndex = 0
         fun addRow(keys: List<String>, weights: List<Float> = List(keys.size) { 1f }) {
