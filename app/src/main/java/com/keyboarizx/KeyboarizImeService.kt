@@ -567,7 +567,7 @@ class KeyboarizImeService : InputMethodService() {
                         }
                     }
                 }
-                val keyHeight = if (numberMode && symbolPage == 3) 56 else 48
+                val keyHeight = if (numberMode && symbolPage == 3) 58 else 48
                 val params = LinearLayout.LayoutParams(0, dp(keyHeight), weights[index])
                 // Hilangkan celah mati pada area sentuh: batas tombol saling berdempetan,
                 // sementara inset drawable tetap menjaga jarak visual antar bentuk tombol.
