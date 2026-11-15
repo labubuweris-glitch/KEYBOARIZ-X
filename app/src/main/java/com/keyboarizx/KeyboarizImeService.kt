@@ -879,7 +879,7 @@ class KeyboarizImeService : InputMethodService() {
             View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED)
         )
         val xOffset = (anchor.width - row.measuredWidth) / 2
-        popup.showAsDropDown(anchor, xOffset, -dp(52))
+        popup.showAsDropDown(anchor, xOffset, -dp(98))
         return popup
     }
 
