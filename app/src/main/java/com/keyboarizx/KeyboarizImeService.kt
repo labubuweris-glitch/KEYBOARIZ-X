@@ -181,9 +181,11 @@ class KeyboarizImeService : InputMethodService() {
             addRizboardSection("BAWAAN", builtInValues)
             addRizboardSection("CUSTOM", customValues)
             scroll.addView(content)
-            // Panel mengisi sisa ruang dalam tinggi halaman standar (260dp), sama seperti ABC dan Simbol.
-            root.layoutParams = ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(260))
-            root.addView(scroll, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f))
+            // Tinggi isi dibuat tetap agar ScrollView tidak melebar mengikuti tinggi layar IME.
+            // 208dp + toolbar 40dp + padding root 12dp = total 260dp.
+            root.addView(scroll, LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, dp(208)
+            ))
             return root
         }
 
@@ -409,13 +411,10 @@ class KeyboarizImeService : InputMethodService() {
             }
 
             scrollView.addView(itemsLayout)
-            // Samakan tinggi panel Clipboard dengan area keyboard utama.
-            // Daftar tetap dapat digulir di dalam panel, tanpa memperluas IME
-            // hingga memenuhi hampir seluruh layar.
-            // Panel mengisi sisa ruang dalam tinggi halaman standar (260dp), sama seperti ABC dan Simbol.
-            root.layoutParams = ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(260))
+            // Tinggi daftar dibuat tetap agar ScrollView tidak mengisi seluruh tinggi layar IME.
+            // 166dp + toolbar 40dp + tab 42dp + padding root 12dp = total 260dp.
             root.addView(scrollView, LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f
+                LinearLayout.LayoutParams.MATCH_PARENT, dp(166)
             ))
             return root
         }
