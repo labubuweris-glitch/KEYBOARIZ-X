@@ -1166,57 +1166,78 @@ private class HummingbirdOverlayView(context: Context) : View(context) {
         val elapsed = (android.os.SystemClock.uptimeMillis() - startTime) % 12800L
         val birdWidth = 35f * density
         val birdHeight = 25f * density
-        val firstFlight = 3400L
-        val firstHoverEnd = 5000L
-        val secondFlightEnd = 8400L
-        val secondHoverEnd = 9900L
 
+        // Gerakan natural: banyak melayang stabil, diselingi perpindahan singkat.
         val x: Float
         val direction: Float
-        val swoop: Float
         val bank: Float
+        val travel: Float
+        val hoverPhase: Float
+        fun smooth(t: Float): Float {
+            val p = t.coerceIn(0f, 1f)
+            return p * p * (3f - 2f * p)
+        }
         when {
-            elapsed < firstFlight -> {
-                val p = elapsed / firstFlight.toFloat()
-                x = -birdWidth + (width * 0.34f + birdWidth) * p
+            elapsed < 1800L -> {
+                hoverPhase = elapsed / 1000f
+                x = width * 0.18f + kotlin.math.sin(hoverPhase * 1.1f).toFloat() * birdWidth * 0.035f
                 direction = 1f
-                swoop = kotlin.math.sin(p * Math.PI * 2.0).toFloat() * height * 0.245f
-                bank = kotlin.math.cos(p * Math.PI * 2.0).toFloat() * 13f
+                bank = 0f
+                travel = 0f
             }
-            elapsed < firstHoverEnd -> {
-                val t = (elapsed - firstFlight) / 1000f
-                x = width * 0.34f + kotlin.math.sin(t * 2.2f).toFloat() * birdWidth * 0.10f
+            elapsed < 3400L -> {
+                val p = smooth((elapsed - 1800L) / 1600f)
+                x = width * (0.18f + 0.54f * p)
                 direction = 1f
-                swoop = kotlin.math.sin(t * 2.4f).toFloat() * height * 0.025f
-                bank = kotlin.math.sin(t * 2.2f).toFloat() * 8f
+                bank = (kotlin.math.sin(p * Math.PI).toFloat() * 7f)
+                travel = kotlin.math.sin(p * Math.PI).toFloat()
+                hoverPhase = 0f
             }
-            elapsed < secondFlightEnd -> {
-                val p = (elapsed - firstHoverEnd) / (secondFlightEnd - firstHoverEnd).toFloat()
-                x = width * 0.34f + (width * 0.72f) * p
+            elapsed < 5600L -> {
+                hoverPhase = (elapsed - 3400L) / 1000f
+                x = width * 0.72f + kotlin.math.sin(hoverPhase * 1.0f).toFloat() * birdWidth * 0.035f
                 direction = 1f
-                swoop = kotlin.math.sin(p * Math.PI * 3.0).toFloat() * height * 0.255f
-                bank = kotlin.math.sin(p * Math.PI * 3.0).toFloat() * 17f
+                bank = 0f
+                travel = 0f
             }
-            elapsed < secondHoverEnd -> {
-                val t = (elapsed - secondFlightEnd) / 1000f
-                x = width * 1.06f + kotlin.math.sin(t * 2.0f).toFloat() * birdWidth * 0.08f
+            elapsed < 6900L -> {
+                val p = smooth((elapsed - 5600L) / 1300f)
+                x = width * (0.72f - 0.14f * p)
+                direction = -1f
+                bank = -kotlin.math.sin(p * Math.PI).toFloat() * 6f
+                travel = kotlin.math.sin(p * Math.PI).toFloat()
+                hoverPhase = 0f
+            }
+            elapsed < 8200L -> {
+                hoverPhase = (elapsed - 6900L) / 1000f
+                x = width * 0.58f + kotlin.math.sin(hoverPhase * 1.1f).toFloat() * birdWidth * 0.03f
                 direction = 1f
-                swoop = kotlin.math.sin(t * 2.5f).toFloat() * height * 0.022f
-                bank = kotlin.math.sin(t * 2.0f).toFloat() * 8f
+                bank = 0f
+                travel = 0f
+            }
+            elapsed < 9800L -> {
+                val p = smooth((elapsed - 8200L) / 1600f)
+                x = width * (0.58f - 0.40f * p)
+                direction = -1f
+                bank = -kotlin.math.sin(p * Math.PI).toFloat() * 7f
+                travel = kotlin.math.sin(p * Math.PI).toFloat()
+                hoverPhase = 0f
             }
             else -> {
-                val p = (elapsed - secondHoverEnd) / (12800L - secondHoverEnd).toFloat()
-                x = width * 1.06f - (width + birdWidth * 0.2f) * p
-                direction = -1f
-                swoop = kotlin.math.sin(p * Math.PI * 2.5).toFloat() * height * 0.245f
-                bank = kotlin.math.cos(p * Math.PI * 2.5).toFloat() * 15f
+                hoverPhase = (elapsed - 9800L) / 1000f
+                x = width * 0.18f + kotlin.math.sin(hoverPhase * 1.0f).toFloat() * birdWidth * 0.035f
+                direction = 1f
+                bank = 0f
+                travel = 0f
             }
         }
 
         val flap = kotlin.math.sin(elapsed / 42.0).toFloat()
-        val hover = kotlin.math.sin(elapsed / 175.0).toFloat() * 2.0f * density
-        // Gerakan naik-turun dan belokan lembut, tetap dibatasi di area keyboard.
-        val y = (height * 0.50f + swoop + hover).coerceIn(birdHeight * 0.8f, height - birdHeight * 0.8f)
+        // Saat melayang, badan hampir diam; saat berpindah, ada lengkungan kecil.
+        val hoverBob = kotlin.math.sin(hoverPhase * 2.0).toFloat() * height * 0.012f
+        val travelArc = -travel * height * 0.045f
+        val y = (height * 0.52f + hoverBob + travelArc)
+            .coerceIn(birdHeight * 0.9f, height - birdHeight * 0.9f)
 
         canvas.save()
         canvas.translate(x, y)
