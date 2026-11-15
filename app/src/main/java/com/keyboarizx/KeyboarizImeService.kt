@@ -555,6 +555,9 @@ class KeyboarizImeService : InputMethodService() {
                         val showAlternates = Runnable {
                             if (pointerDown && alternatePopup == null) {
                                 alternatePopup = showAlternateCharacters(this, label)
+                                alternatePopup?.setOnDismissListener {
+                                    alternatePopup = null
+                                }
                             }
                         }
                         setOnTouchListener { _, event ->
