@@ -125,17 +125,10 @@ class KeyboarizImeService : InputMethodService() {
         }
 
         if (rizboardMode || customMode) {
-            makeToolButton("RIZBOARD", 1.25f, rizboardBorder) {
-                rizboardMode = true
-                customMode = false
-                setInputView(createKeyboardView())
+            makeToolButton("HAPUS", 1.1f, Color.rgb(230, 105, 105)) { deleteLastRizboardText() }
+            makeToolButton("SPASI", 1.1f, functionBorder) {
+                currentInputConnection?.commitText(" ", 1)
             }
-            makeToolButton("CUSTOM", 1.15f, customBorder) {
-                rizboardMode = false
-                customMode = true
-                setInputView(createKeyboardView())
-            }
-            makeToolButton("HAPUS", 0.9f, Color.rgb(230, 105, 105)) { deleteLastRizboardText() }
             rizboardEnterButton = makeToolButton(enterKeyLabel(), 1.25f, functionBorder) {
                 performEnterAction()
             }
