@@ -187,6 +187,15 @@ class MainActivity : Activity() {
             }
         }
 
+
+        section(root, "RIZBOARD")
+        root.addView(TextView(this).apply {
+            text = "Kelola tombol custom yang muncul bersama tombol bawaan di halaman RIZBOARD."
+            textSize = 13f
+            setTextColor(Color.LTGRAY)
+        })
+        addAction(root, "Kelola Tombol RIZBOARD") { showRizboardManager() }
+
         section(root, "CLIPBOARD")
         addAction(root, "Kelola Kategori Sematan") {
             showCategoryManager()
@@ -208,6 +217,83 @@ class MainActivity : Activity() {
         setContentView(ScrollView(this).apply { addView(root) })
     }
 
+
+
+    private fun loadRizboardCustom(): MutableList<String> {
+        val raw = prefs.getString("rizboard_custom_buttons", null) ?: return mutableListOf()
+        return try {
+            val json = JSONArray(raw)
+            (0 until json.length()).mapNotNull { i -> json.optString(i).takeIf { it.isNotEmpty() } }.distinct().toMutableList()
+        } catch (_: Exception) { mutableListOf() }
+    }
+
+    private fun saveRizboardCustom(items: List<String>) {
+        val json = JSONArray()
+        items.distinct().forEach { json.put(it) }
+        prefs.edit().putString("rizboard_custom_buttons", json.toString()).apply()
+    }
+
+    private fun showRizboardManager() {
+        fun refresh() {
+            val items = loadRizboardCustom()
+            val labels = items.map { if (it.length > 32) it.take(29) + "…" else it }.toMutableList()
+            labels.add("+ Tambah tombol custom")
+            android.app.AlertDialog.Builder(this)
+                .setTitle("Kelola Tombol RIZBOARD")
+                .setItems(labels.toTypedArray()) { _, which ->
+                    if (which == labels.lastIndex) showRizboardEditDialog(null) { refresh() }
+                    else showRizboardItemActions(items[which]) { refresh() }
+                }
+                .setNegativeButton("Tutup", null)
+                .show()
+        }
+        refresh()
+    }
+
+    private fun showRizboardItemActions(value: String, onDone: () -> Unit) {
+        android.app.AlertDialog.Builder(this)
+            .setTitle(if (value.length > 40) value.take(37) + "…" else value)
+            .setItems(arrayOf("Ubah", "Hapus")) { _, which ->
+                if (which == 0) showRizboardEditDialog(value, onDone)
+                else android.app.AlertDialog.Builder(this)
+                    .setMessage("Hapus tombol custom ini?")
+                    .setPositiveButton("Hapus") { _, _ ->
+                        saveRizboardCustom(loadRizboardCustom().filterNot { it == value })
+                        onDone()
+                    }
+                    .setNegativeButton("Batal", null).show()
+            }
+            .setNegativeButton("Batal", null)
+            .show()
+    }
+
+    private fun showRizboardEditDialog(oldValue: String?, onDone: () -> Unit) {
+        val input = EditText(this).apply {
+            hint = "Isi teks tombol"
+            setText(oldValue ?: "")
+            setSingleLine(false)
+            minLines = 1
+            maxLines = 4
+        }
+        android.app.AlertDialog.Builder(this)
+            .setTitle(if (oldValue == null) "Tambah tombol custom" else "Ubah tombol custom")
+            .setMessage("Teks akan dimasukkan persis saat tombol ditekan.")
+            .setView(input)
+            .setPositiveButton("Simpan") { _, _ ->
+                val value = input.text.toString()
+                if (value.isNotEmpty()) {
+                    val items = loadRizboardCustom()
+                    if (oldValue != null) items.remove(oldValue)
+                    if (value !in items) {
+                        items.add(value)
+                        saveRizboardCustom(items)
+                    } else Toast.makeText(this, "Tombol tersebut sudah ada", Toast.LENGTH_SHORT).show()
+                    onDone()
+                } else Toast.makeText(this, "Isi tombol tidak boleh kosong", Toast.LENGTH_SHORT).show()
+            }
+            .setNegativeButton("Batal", null)
+            .show()
+    }
 
     private fun loadPinCategories(): LinkedHashMap<String, List<String>> {
         val raw = prefs.getString("clipboard_pin_categories", null)
