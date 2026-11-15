@@ -123,21 +123,29 @@ class KeyboarizImeService : InputMethodService() {
                 "083819473139", "Brush1933", "==========================",
                 ". can bisa login", ". kr aya otp"
             )
-            val values = builtInValues + loadRizboardButtons()
+            val customValues = loadRizboardButtons()
             val scroll = ScrollView(this)
             val content = LinearLayout(this).apply {
                 orientation = LinearLayout.VERTICAL
                 setPadding(0, dp(2), 0, dp(2))
             }
-            if (values.isEmpty()) {
+            fun addRizboardSection(title: String, values: List<String>) {
                 content.addView(TextView(this).apply {
-                    text = "Belum ada tombol custom. Tambahkan melalui aplikasi KEYBOARIZ X."
-                    textSize = 13f
-                    setTextColor(textColor)
-                    gravity = Gravity.CENTER
-                    setPadding(dp(12), dp(20), dp(12), dp(20))
+                    text = title
+                    textSize = 11f
+                    typeface = Typeface.DEFAULT_BOLD
+                    setTextColor(accentColor)
+                    setPadding(dp(4), dp(5), dp(4), dp(2))
                 })
-            } else {
+                if (values.isEmpty()) {
+                    content.addView(TextView(this).apply {
+                        text = "Belum ada tombol custom. Tambahkan melalui aplikasi KEYBOARIZ X."
+                        textSize = 12f
+                        setTextColor(textColor)
+                        setPadding(dp(6), dp(5), dp(6), dp(5))
+                    })
+                    return
+                }
                 values.chunked(3).forEach { group ->
                     val row = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
                     group.forEach { value ->
@@ -165,6 +173,8 @@ class KeyboarizImeService : InputMethodService() {
                     content.addView(row)
                 }
             }
+            addRizboardSection("BAWAAN", builtInValues)
+            addRizboardSection("CUSTOM", customValues)
             scroll.addView(content)
             root.addView(scroll, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(170)))
             return root
