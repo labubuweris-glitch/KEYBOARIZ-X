@@ -201,30 +201,6 @@ class MainActivity : Activity() {
             showCategoryManager()
         }
 
-        section(root, "ANIMASI CUSTOM")
-        root.addView(TextView(this).apply {
-            text = "Pilih GIF dari galeri HP. GIF akan tampil kecil di atas tombol keyboard. Default: tanpa animasi."
-            textSize = 13f
-            setTextColor(Color.LTGRAY)
-        })
-        addAction(root, "Pilih GIF dari Galeri") { pickCustomGif() }
-        addAction(root, "Nonaktifkan Animasi") {
-            prefs.edit().putBoolean("custom_gif_enabled", false).apply()
-            Toast.makeText(this, "Animasi dinonaktifkan", Toast.LENGTH_SHORT).show()
-        }
-        addAction(root, "Hapus GIF Tersimpan") {
-            val saved = prefs.getString("custom_gif_uri", null)
-            if (saved != null) {
-                try {
-                    contentResolver.releasePersistableUriPermission(
-                        android.net.Uri.parse(saved), Intent.FLAG_GRANT_READ_URI_PERMISSION
-                    )
-                } catch (_: Exception) {}
-            }
-            prefs.edit().remove("custom_gif_uri").putBoolean("custom_gif_enabled", false).apply()
-            Toast.makeText(this, "GIF tersimpan dihapus", Toast.LENGTH_SHORT).show()
-        }
-
         section(root, "PENGATURAN LAINNYA")
         addAction(root, "Tentang KEYBOARIZ X") {
             android.app.AlertDialog.Builder(this)
@@ -242,42 +218,6 @@ class MainActivity : Activity() {
     }
 
 
-
-    private fun pickCustomGif() {
-        val intent = Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
-            addCategory(Intent.CATEGORY_OPENABLE)
-            type = "image/gif"
-            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION)
-        }
-        try {
-            startActivityForResult(intent, 701)
-        } catch (_: Exception) {
-            Toast.makeText(this, "Galeri GIF tidak tersedia di perangkat ini", Toast.LENGTH_LONG).show()
-        }
-    }
-
-    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
-        super.onActivityResult(requestCode, resultCode, data)
-        if (requestCode != 701 || resultCode != RESULT_OK) return
-        val uri = data?.data ?: return
-        val mime = contentResolver.getType(uri)
-        if (mime != "image/gif" && !uri.toString().lowercase().endsWith(".gif")) {
-            Toast.makeText(this, "Pilih file GIF, ya", Toast.LENGTH_LONG).show()
-            return
-        }
-        try {
-            contentResolver.takePersistableUriPermission(
-                uri, Intent.FLAG_GRANT_READ_URI_PERMISSION
-            )
-            prefs.edit()
-                .putString("custom_gif_uri", uri.toString())
-                .putBoolean("custom_gif_enabled", true)
-                .apply()
-            Toast.makeText(this, "GIF tersimpan. Buka keyboard untuk melihat animasi.", Toast.LENGTH_LONG).show()
-        } catch (_: Exception) {
-            Toast.makeText(this, "GIF tidak dapat diakses. Coba pilih file lain.", Toast.LENGTH_LONG).show()
-        }
-    }
 
     private fun loadRizboardCustom(): MutableList<String> {
         val raw = prefs.getString("rizboard_custom_buttons", null) ?: return mutableListOf()
