@@ -684,9 +684,26 @@ class KeyboarizImeService : InputMethodService() {
             addRow(listOf("?123", ",", "SPACE", ".", "↵"),
                 listOf(1.4f,0.8f,3.8f,0.8f,1.4f))
         }
-        return root
+        // Kolibri hanya tampil pada keyboard huruf utama; mode khusus tetap bersih.
+        return if (!numberMode) withHummingbirdOverlay(root) else root
     }
 
+    private fun withHummingbirdOverlay(keyboard: View): View {
+        return FrameLayout(this).apply {
+            clipChildren = false
+            clipToPadding = false
+            addView(keyboard, FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT,
+                FrameLayout.LayoutParams.WRAP_CONTENT
+            ))
+            addView(HummingbirdOverlayView(this@KeyboarizImeService),
+                FrameLayout.LayoutParams(
+                    FrameLayout.LayoutParams.MATCH_PARENT,
+                    FrameLayout.LayoutParams.MATCH_PARENT
+                )
+            )
+        }
+    }
 
     private fun loadRizboardButtons(): List<String> {
         val raw = prefs.getString("rizboard_custom_buttons", null) ?: return emptyList()
@@ -1092,6 +1109,160 @@ class KeyboarizImeService : InputMethodService() {
             (Color.green(base) * inverse + Color.green(tint) * amount).toInt(),
             (Color.blue(base) * inverse + Color.blue(tint) * amount).toInt()
         )
+    }
+}
+
+/**
+ * A lightweight, touch-through hummingbird animation drawn directly on Canvas.
+ * It uses no image assets, network access, or continuous background work when detached.
+ */
+private class HummingbirdOverlayView(context: Context) : View(context) {
+    private val density = resources.displayMetrics.density
+    private val bodyPaint = Paint(Paint.ANTI_ALIAS_FLAG)
+    private val wingPaint = Paint(Paint.ANTI_ALIAS_FLAG)
+    private val darkPaint = Paint(Paint.ANTI_ALIAS_FLAG)
+    private val shinePaint = Paint(Paint.ANTI_ALIAS_FLAG)
+    private val throatPaint = Paint(Paint.ANTI_ALIAS_FLAG)
+    private val beakPaint = Paint(Paint.ANTI_ALIAS_FLAG)
+    private val body = RectF()
+    private val wing = Path()
+    private val tail = Path()
+    private val startTime = android.os.SystemClock.uptimeMillis()
+    private val frame = object : Runnable {
+        override fun run() {
+            if (!isAttachedToWindow) return
+            invalidate()
+            postDelayed(this, 34L)
+        }
+    }
+
+    init {
+        isClickable = false
+        isFocusable = false
+        importantForAccessibility = IMPORTANT_FOR_ACCESSIBILITY_NO
+        setWillNotDraw(false)
+    }
+
+    override fun onAttachedToWindow() {
+        super.onAttachedToWindow()
+        removeCallbacks(frame)
+        post(frame)
+    }
+
+    override fun onDetachedFromWindow() {
+        removeCallbacks(frame)
+        super.onDetachedFromWindow()
+    }
+
+    override fun onDraw(canvas: Canvas) {
+        super.onDraw(canvas)
+        if (width <= 0 || height <= 0) return
+
+        val elapsed = (android.os.SystemClock.uptimeMillis() - startTime) % 12800L
+        val birdWidth = 35f * density
+        val birdHeight = 25f * density
+        val firstFlight = 3400L
+        val firstHoverEnd = 5000L
+        val secondFlightEnd = 8400L
+        val secondHoverEnd = 9900L
+
+        val x: Float
+        val direction: Float
+        when {
+            elapsed < firstFlight -> {
+                val p = elapsed / firstFlight.toFloat()
+                x = -birdWidth + (width + birdWidth * 0.25f) * p
+                direction = 1f
+            }
+            elapsed < firstHoverEnd -> {
+                x = width * 0.34f
+                direction = 1f
+            }
+            elapsed < secondFlightEnd -> {
+                val p = (elapsed - firstHoverEnd) / (secondFlightEnd - firstHoverEnd).toFloat()
+                x = width * 0.34f + (width * 0.72f) * p
+                direction = 1f
+            }
+            elapsed < secondHoverEnd -> {
+                x = width * 1.06f
+                direction = 1f
+            }
+            else -> {
+                val p = (elapsed - secondHoverEnd) / (12800L - secondHoverEnd).toFloat()
+                x = width * 1.06f - (width + birdWidth * 0.2f) * p
+                direction = -1f
+            }
+        }
+
+        val flap = kotlin.math.sin(elapsed / 42.0).toFloat()
+        val hover = kotlin.math.sin(elapsed / 175.0).toFloat() * 2.0f * density
+        // Jalur terbang berada di area huruf, sedikit di atas pusat baris tombol.
+        val y = height * 0.57f + hover
+
+        canvas.save()
+        canvas.translate(x, y)
+        if (direction < 0f) canvas.scale(-1f, 1f)
+
+        // Badan mungil hijau zamrud dengan gradasi sederhana.
+        bodyPaint.shader = android.graphics.LinearGradient(
+            0f, -birdHeight * 0.35f, 0f, birdHeight * 0.55f,
+            intArrayOf(Color.rgb(80, 190, 133), Color.rgb(20, 105, 78), Color.rgb(8, 57, 52)),
+            null, android.graphics.Shader.TileMode.CLAMP
+        )
+        body.set(-birdWidth * 0.31f, -birdHeight * 0.24f,
+            birdWidth * 0.28f, birdHeight * 0.25f)
+        canvas.drawOval(body, bodyPaint)
+        bodyPaint.shader = null
+
+        // Dada berkilau dan kepala.
+        throatPaint.color = Color.rgb(70, 220, 170)
+        body.set(-birdWidth * 0.12f, -birdHeight * 0.02f,
+            birdWidth * 0.17f, birdHeight * 0.20f)
+        canvas.drawOval(body, throatPaint)
+
+        bodyPaint.color = Color.rgb(24, 142, 99)
+        canvas.drawCircle(birdWidth * 0.18f, -birdHeight * 0.24f, birdHeight * 0.23f, bodyPaint)
+
+        // Sayap mengepak cepat; sudut berubah tiap frame.
+        wing.reset()
+        val wingLift = flap * birdHeight * 0.42f
+        wing.moveTo(-birdWidth * 0.02f, -birdHeight * 0.08f)
+        wing.cubicTo(-birdWidth * 0.23f, -birdHeight * 0.52f - wingLift,
+            -birdWidth * 0.48f, -birdHeight * 0.55f - wingLift,
+            -birdWidth * 0.34f, -birdHeight * 0.03f)
+        wing.cubicTo(-birdWidth * 0.24f, birdHeight * 0.04f,
+            -birdWidth * 0.10f, birdHeight * 0.02f,
+            -birdWidth * 0.02f, -birdHeight * 0.08f)
+        wing.close()
+        wingPaint.color = Color.argb(210, 102, 194, 164)
+        canvas.drawPath(wing, wingPaint)
+
+        // Ekor runcing.
+        tail.reset()
+        tail.moveTo(-birdWidth * 0.25f, birdHeight * 0.03f)
+        tail.lineTo(-birdWidth * 0.55f, birdHeight * 0.27f)
+        tail.lineTo(-birdWidth * 0.30f, birdHeight * 0.17f)
+        tail.lineTo(-birdWidth * 0.18f, birdHeight * 0.12f)
+        tail.close()
+        darkPaint.color = Color.rgb(18, 91, 72)
+        canvas.drawPath(tail, darkPaint)
+
+        // Paruh panjang khas kolibri.
+        beakPaint.color = Color.rgb(35, 38, 34)
+        beakPaint.strokeWidth = 1.7f * density
+        beakPaint.strokeCap = Paint.Cap.ROUND
+        canvas.drawLine(birdWidth * 0.32f, -birdHeight * 0.22f,
+            birdWidth * 0.67f, -birdHeight * 0.17f, beakPaint)
+
+        // Mata kecil dan kilau bulu.
+        darkPaint.color = Color.rgb(12, 25, 22)
+        canvas.drawCircle(birdWidth * 0.23f, -birdHeight * 0.29f, 1.35f * density, darkPaint)
+        shinePaint.color = Color.argb(190, 220, 255, 235)
+        canvas.drawCircle(birdWidth * 0.24f, -birdHeight * 0.31f, 0.48f * density, shinePaint)
+        canvas.drawLine(-birdWidth * 0.18f, -birdHeight * 0.12f,
+            birdWidth * 0.02f, -birdHeight * 0.16f, shinePaint)
+
+        canvas.restore()
     }
 }
 
