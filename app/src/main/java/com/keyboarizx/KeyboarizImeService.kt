@@ -220,8 +220,10 @@ class KeyboarizImeService : InputMethodService() {
                     minWidth = 0
                     minimumWidth = 0
                     setTextColor(if (clipboardPage == page) accentTextColor else textColor)
-                    background = KeyShapeDrawable(keyColor, keyShape, resources.displayMetrics.density, borderColor = clipboardBorder)
-                    if (clipboardPage == page) setBackgroundColor(accentColor)
+                    background = KeyShapeDrawable(
+                        if (clipboardPage == page) accentColor else keyColor,
+                        keyShape, resources.displayMetrics.density, borderColor = clipboardBorder
+                    )
                     setOnClickListener {
                         clipboardPage = page
                         selectedPinCategory = null
