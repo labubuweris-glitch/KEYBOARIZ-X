@@ -102,7 +102,7 @@ class KeyboarizImeService : InputMethodService() {
     }
 
     private fun playKeySound(key: String = "letter") {
-        if (!prefs.getBoolean("keySoundEnabled", true)) return
+        if (!prefs.getBoolean("keySoundEnabled", false)) return
         val pool = keySoundPool ?: return
         val preferredId = keySoundIds[soundNameForKey(key)] ?: keySoundIds["suara_ketik"] ?: return
         if (preferredId !in readyKeySounds) return
@@ -116,7 +116,7 @@ class KeyboarizImeService : InputMethodService() {
     }
 
     private fun startLongDeleteSound() {
-        if (!prefs.getBoolean("keySoundEnabled", true)) return
+        if (!prefs.getBoolean("keySoundEnabled", false)) return
         val pool = keySoundPool ?: return
         val soundId = keySoundIds["suara_hapus"] ?: keySoundIds["suara_ketik"] ?: return
         if (soundId !in readyKeySounds) return
