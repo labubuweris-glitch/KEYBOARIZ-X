@@ -81,6 +81,14 @@ class KeyboarizImeService : InputMethodService() {
         val backgroundColor = prefs.getInt("backgroundColor", Color.rgb(17, 28, 39))
         val keyShape = prefs.getString("keyShape", "ROUNDED") ?: "ROUNDED"
 
+        // Warna garis pembeda tiap kelompok tombol.
+        val clipboardBorder = Color.rgb(57, 198, 232) // cyan
+        val rizboardBorder = Color.rgb(167, 139, 250) // ungu
+        val customBorder = Color.rgb(245, 163, 75) // oranye
+        val letterBorder = Color.rgb(69, 184, 232) // biru muda
+        val numberBorder = Color.rgb(231, 182, 83) // emas
+        val functionBorder = Color.rgb(91, 205, 151) // hijau lembut
+
         // Aksen dibuat dari warna tombol + warna tulisan agar selalu selaras dengan tema aktif.
         val accentColor = blendThemeColors(keyColor, textColor, 0.28f)
         val accentTextColor = if (Color.luminance(accentColor) > 0.52f) {
@@ -96,12 +104,12 @@ class KeyboarizImeService : InputMethodService() {
 
         val toolRow = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
 
-        fun makeToolButton(label: String, weight: Float, onClick: () -> Unit): Button {
+        fun makeToolButton(label: String, weight: Float, borderColor: Int = Color.rgb(90, 112, 130), onClick: () -> Unit): Button {
             val button = Button(this).apply {
                 text = label
                 textSize = 13f
                 setTextColor(textColor)
-                background = KeyShapeDrawable(keyColor, keyShape, resources.displayMetrics.density)
+                background = KeyShapeDrawable(keyColor, keyShape, resources.displayMetrics.density, borderColor = borderColor)
                 typeface = Typeface.DEFAULT_BOLD
                 isAllCaps = false
                 minWidth = 0
@@ -116,18 +124,18 @@ class KeyboarizImeService : InputMethodService() {
         }
 
         if (rizboardMode || customMode) {
-            makeToolButton("RIZBOARD", 1.25f) {
+            makeToolButton("RIZBOARD", 1.25f, rizboardBorder) {
                 rizboardMode = true
                 customMode = false
                 setInputView(createKeyboardView())
             }
-            makeToolButton("CUSTOM", 1.15f) {
+            makeToolButton("CUSTOM", 1.15f, customBorder) {
                 rizboardMode = false
                 customMode = true
                 setInputView(createKeyboardView())
             }
-            makeToolButton("HAPUS", 0.9f) { deleteOne() }
-            rizboardEnterButton = makeToolButton(enterKeyLabel(), 1.25f) {
+            makeToolButton("HAPUS", 0.9f, Color.rgb(230, 105, 105)) { deleteOne() }
+            rizboardEnterButton = makeToolButton(enterKeyLabel(), 1.25f, functionBorder) {
                 performEnterAction()
             }
             makeToolButton("✕", 0.55f) {
@@ -169,7 +177,10 @@ class KeyboarizImeService : InputMethodService() {
                             ellipsize = android.text.TextUtils.TruncateAt.END
                             setSingleLine(true)
                             setTextColor(textColor)
-                            background = KeyShapeDrawable(keyColor, keyShape, resources.displayMetrics.density)
+                            background = KeyShapeDrawable(
+                                keyColor, keyShape, resources.displayMetrics.density,
+                                borderColor = if (customMode) customBorder else rizboardBorder
+                            )
                             setPadding(dp(3), 0, dp(3), 0)
                             setOnClickListener { currentInputConnection?.commitText(value, 1) }
                         }
@@ -192,7 +203,7 @@ class KeyboarizImeService : InputMethodService() {
         }
 
         if (clipboardMode) {
-            makeToolButton("CLIPBOARD", 2.2f) { }
+            makeToolButton("CLIPBOARD", 2.2f, clipboardBorder) { }
             makeToolButton("✕", 0.7f) {
                 clipboardMode = false
                 selectedPinCategory = null
@@ -209,7 +220,8 @@ class KeyboarizImeService : InputMethodService() {
                     minWidth = 0
                     minimumWidth = 0
                     setTextColor(if (clipboardPage == page) accentTextColor else textColor)
-                    setBackgroundColor(if (clipboardPage == page) accentColor else keyColor)
+                    background = KeyShapeDrawable(keyColor, keyShape, resources.displayMetrics.density, borderColor = clipboardBorder)
+                    if (clipboardPage == page) setBackgroundColor(accentColor)
                     setOnClickListener {
                         clipboardPage = page
                         selectedPinCategory = null
@@ -249,7 +261,7 @@ class KeyboarizImeService : InputMethodService() {
                     textSize = 14f
                     gravity = Gravity.START or Gravity.CENTER_VERTICAL
                     setTextColor(textColor)
-                    setBackgroundColor(keyColor)
+                    background = KeyShapeDrawable(keyColor, keyShape, resources.displayMetrics.density, borderColor = clipboardBorder)
                     isAllCaps = false
                     minWidth = 0
                     minimumWidth = 0
@@ -421,19 +433,19 @@ class KeyboarizImeService : InputMethodService() {
             return root
         }
 
-        makeToolButton("▤ Clipboard", 1f) {
+        makeToolButton("▤ Clipboard", 1f, clipboardBorder) {
             captureCurrentClipboard()
             clipboardMode = true
             rizboardMode = false
             setInputView(createKeyboardView())
         }
-        makeToolButton("RIZBOARD", 1f) {
+        makeToolButton("RIZBOARD", 1f, rizboardBorder) {
             clipboardMode = false
             rizboardMode = true
             customMode = false
             setInputView(createKeyboardView())
         }
-        makeToolButton("CUSTOM", 1f) {
+        makeToolButton("CUSTOM", 1f, customBorder) {
             clipboardMode = false
             rizboardMode = false
             customMode = true
@@ -452,6 +464,12 @@ class KeyboarizImeService : InputMethodService() {
             keyboardRowIndex++
             keys.forEachIndexed { index, label ->
                 val displayLabel = if (label == "↵") enterKeyLabel() else label
+                val borderColor = when {
+                    label == "SPACE" || label == "SPACE_ICON" -> letterBorder
+                    label in listOf("⇧", "⌫", "↵", "BARIS_BARU", "?123", "ABC", "1+2", "=\\<") -> functionBorder
+                    numberMode || label.length == 1 && label[0].isDigit() -> numberBorder
+                    else -> letterBorder
+                }
                 val button = Button(this).apply {
                     text = when {
                         label == "⇧" && shiftState == 2 -> "⬆"
@@ -477,7 +495,8 @@ class KeyboarizImeService : InputMethodService() {
                         if (isAccent) accentColor else keyColor,
                         keyShape,
                         resources.displayMetrics.density,
-                        invertedLoveRow
+                        invertedLoveRow,
+                        borderColor
                     )
                     typeface = Typeface.DEFAULT
                     isAllCaps = false
@@ -914,7 +933,8 @@ private class KeyShapeDrawable(
     private val fillColor: Int,
     private val shape: String,
     private val density: Float,
-    private val inverted: Boolean = false
+    private val inverted: Boolean = false,
+    private val borderColor: Int? = null
 ) : Drawable() {
     private val paint = Paint(Paint.ANTI_ALIAS_FLAG)
     private val rect = RectF()
@@ -988,6 +1008,16 @@ private class KeyShapeDrawable(
             "PILL", "ROUNDED", "SOFT_SQUARE" -> canvas.drawRoundRect(rect, radius, radius, paint)
             else -> canvas.drawRoundRect(rect, radius, radius, paint)
         }
+
+        // Garis luar tipis berwarna; isi tombol tetap memakai warna tema semula.
+        borderColor?.let { color ->
+            paint.style = Paint.Style.STROKE
+            paint.strokeWidth = 1.25f * density
+            paint.color = color
+            val outline = RectF(rect).apply { inset(0.8f * density, 0.8f * density) }
+            canvas.drawRoundRect(outline, radius, radius, paint)
+            paint.style = Paint.Style.FILL
+        }
     }
 
     private fun polygonPath(points: List<Pair<Float, Float>>): Path {
@@ -998,11 +1028,3 @@ private class KeyShapeDrawable(
                 if (index == 0) moveTo(x, y) else lineTo(x, y)
             }
             close()
-        }
-    }
-
-    override fun setAlpha(alpha: Int) { paint.alpha = alpha }
-    override fun setColorFilter(colorFilter: ColorFilter?) { paint.colorFilter = colorFilter }
-    @Deprecated("Deprecated in Java")
-    override fun getOpacity(): Int = PixelFormat.TRANSLUCENT
-}
