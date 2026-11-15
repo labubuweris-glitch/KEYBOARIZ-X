@@ -4,8 +4,6 @@ import android.inputmethodservice.InputMethodService
 import android.content.ClipDescription
 import android.content.ClipboardManager
 import android.content.Context
-import android.media.AudioAttributes
-import android.media.SoundPool
 import android.graphics.Color
 import android.graphics.Typeface
 import android.graphics.Canvas
@@ -52,10 +50,6 @@ class KeyboarizImeService : InputMethodService() {
     }
     private var deleting = false
     private var enterButton: Button? = null
-    private var keySoundPool: SoundPool? = null
-    private val keySoundIds = mutableMapOf<String, Int>()
-    private val readyKeySounds = mutableSetOf<Int>()
-    private var longDeleteStreamId = 0
 
     // Rekam salinan selama layanan IME masih hidup, termasuk saat tampilan keyboard tertutup.
     private val clipboardListener = ClipboardManager.OnPrimaryClipChangedListener {
@@ -65,7 +59,7 @@ class KeyboarizImeService : InputMethodService() {
     private val deleteRepeat = object : Runnable {
         override fun run() {
             if (!deleting) return
-            deleteOne(playSound = false)
+            deleteOne()
             handler.postDelayed(this, 55L)
         }
     }
@@ -73,63 +67,6 @@ class KeyboarizImeService : InputMethodService() {
     override fun onCreate() {
         super.onCreate()
         clipboardManager.addPrimaryClipChangedListener(clipboardListener)
-        keySoundPool = SoundPool.Builder()
-            .setMaxStreams(4)
-            .setAudioAttributes(
-                AudioAttributes.Builder()
-                    .setUsage(AudioAttributes.USAGE_MEDIA)
-                    .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
-                    .build()
-            )
-            .build().also { pool ->
-                pool.setOnLoadCompleteListener { _, sampleId, status ->
-                    if (status == 0) readyKeySounds.add(sampleId)
-                }
-                val soundNames = listOf("suara_ketik", "suara_spasi", "suara_enter", "suara_shift", "suara_hapus")
-                soundNames.forEach { name ->
-                    val resourceId = resources.getIdentifier(name, "raw", packageName)
-                    if (resourceId != 0) keySoundIds[name] = pool.load(this, resourceId, 1)
-                }
-            }
-    }
-
-    private fun soundNameForKey(key: String): String = when (key) {
-        "SPACE", "SPACE_ICON" -> "suara_spasi"
-        "↵", "BARIS_BARU" -> "suara_enter"
-        "⇧" -> "suara_shift"
-        "⌫" -> "suara_hapus"
-        else -> "suara_ketik"
-    }
-
-    private fun playKeySound(key: String = "letter") {
-        if (!prefs.getBoolean("keySoundEnabled", false)) return
-        val pool = keySoundPool ?: return
-        val preferredId = keySoundIds[soundNameForKey(key)] ?: keySoundIds["suara_ketik"] ?: return
-        if (preferredId !in readyKeySounds) return
-        val volume = prefs.getInt("keySoundVolume", 65).coerceIn(0, 100) / 100f
-        if (volume <= 0f) return
-        val streamId = pool.play(preferredId, volume, volume, 1, 0, 1f)
-        if (streamId != 0) {
-            // Suara ketukan biasa tetap pendek.
-            handler.postDelayed({ keySoundPool?.stop(streamId) }, 150L)
-        }
-    }
-
-    private fun startLongDeleteSound() {
-        if (!prefs.getBoolean("keySoundEnabled", false)) return
-        val pool = keySoundPool ?: return
-        val soundId = keySoundIds["suara_hapus"] ?: keySoundIds["suara_ketik"] ?: return
-        if (soundId !in readyKeySounds) return
-        val volume = prefs.getInt("keySoundVolume", 65).coerceIn(0, 100) / 100f
-        if (volume <= 0f) return
-        longDeleteStreamId = pool.play(soundId, volume, volume, 1, -1, 1f)
-    }
-
-    private fun stopLongDeleteSound() {
-        if (longDeleteStreamId != 0) {
-            keySoundPool?.stop(longDeleteStreamId)
-            longDeleteStreamId = 0
-        }
     }
 
     override fun onCreateInputView(): View = createKeyboardView()
@@ -465,8 +402,7 @@ class KeyboarizImeService : InputMethodService() {
                             if (backspacePointerDown && !backspaceLongPressed) {
                                 backspaceLongPressed = true
                                 deleting = true
-                                deleteOne(playSound = false)
-                                startLongDeleteSound()
+                                deleteOne()
                                 handler.postDelayed(deleteRepeat, 55L)
                             }
                         }
@@ -485,7 +421,7 @@ class KeyboarizImeService : InputMethodService() {
                                     if (backspaceLongPressed) {
                                         stopDeleting()
                                     } else {
-                                        deleteOne(playSound = true)
+                                        deleteOne()
                                     }
                                     true
                                 }
@@ -503,7 +439,6 @@ class KeyboarizImeService : InputMethodService() {
                         setOnTouchListener { _, event ->
                             when (event.actionMasked) {
                                 MotionEvent.ACTION_DOWN -> {
-                                    playKeySound(label)
                                     if ((label == "1+2" || label == "1 2 3 4") && numberMode) {
                                         symbolPage = if (symbolPage == 3) 2 else 3
                                         setInputView(createKeyboardView())
@@ -798,8 +733,7 @@ class KeyboarizImeService : InputMethodService() {
         }
     }
 
-    private fun deleteOne(playSound: Boolean = true) {
-        if (playSound) playKeySound("⌫")
+    private fun deleteOne() {
         val connection = currentInputConnection ?: return
         val selected = connection.getSelectedText(0)
         if (!selected.isNullOrEmpty()) {
@@ -843,7 +777,6 @@ class KeyboarizImeService : InputMethodService() {
     private fun stopDeleting() {
         deleting = false
         handler.removeCallbacks(deleteRepeat)
-        stopLongDeleteSound()
     }
 
     override fun onFinishInput() {
@@ -854,9 +787,6 @@ class KeyboarizImeService : InputMethodService() {
     override fun onDestroy() {
         stopDeleting()
         clipboardManager.removePrimaryClipChangedListener(clipboardListener)
-        stopLongDeleteSound()
-        keySoundPool?.release()
-        keySoundPool = null
         super.onDestroy()
     }
 
