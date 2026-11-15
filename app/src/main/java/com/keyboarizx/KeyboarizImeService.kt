@@ -112,8 +112,12 @@ class KeyboarizImeService : InputMethodService() {
         }
 
         if (rizboardMode) {
-            makeToolButton("RIZBOARD", 2.2f) { }
-            makeToolButton("✕", 0.7f) {
+            makeToolButton("RIZBOARD", 1.5f) { }
+            makeToolButton("HAPUS", 1f) { deleteOne() }
+            makeToolButton("BARIS BARU", 1.5f) {
+                currentInputConnection?.commitText("\n", 1)
+            }
+            makeToolButton("✕", 0.6f) {
                 rizboardMode = false
                 setInputView(createKeyboardView())
             }
