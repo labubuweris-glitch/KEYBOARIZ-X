@@ -1180,7 +1180,7 @@ private class HummingbirdOverlayView(context: Context) : View(context) {
                 val p = elapsed / firstFlight.toFloat()
                 x = -birdWidth + (width * 0.34f + birdWidth) * p
                 direction = 1f
-                swoop = kotlin.math.sin(p * Math.PI * 2.0).toFloat() * height * 0.105f
+                swoop = kotlin.math.sin(p * Math.PI * 2.0).toFloat() * height * 0.245f
                 bank = kotlin.math.cos(p * Math.PI * 2.0).toFloat() * 13f
             }
             elapsed < firstHoverEnd -> {
@@ -1194,7 +1194,7 @@ private class HummingbirdOverlayView(context: Context) : View(context) {
                 val p = (elapsed - firstHoverEnd) / (secondFlightEnd - firstHoverEnd).toFloat()
                 x = width * 0.34f + (width * 0.72f) * p
                 direction = 1f
-                swoop = kotlin.math.sin(p * Math.PI * 3.0).toFloat() * height * 0.115f
+                swoop = kotlin.math.sin(p * Math.PI * 3.0).toFloat() * height * 0.255f
                 bank = kotlin.math.sin(p * Math.PI * 3.0).toFloat() * 17f
             }
             elapsed < secondHoverEnd -> {
@@ -1208,7 +1208,7 @@ private class HummingbirdOverlayView(context: Context) : View(context) {
                 val p = (elapsed - secondHoverEnd) / (12800L - secondHoverEnd).toFloat()
                 x = width * 1.06f - (width + birdWidth * 0.2f) * p
                 direction = -1f
-                swoop = kotlin.math.sin(p * Math.PI * 2.5).toFloat() * height * 0.105f
+                swoop = kotlin.math.sin(p * Math.PI * 2.5).toFloat() * height * 0.245f
                 bank = kotlin.math.cos(p * Math.PI * 2.5).toFloat() * 15f
             }
         }
@@ -1216,7 +1216,7 @@ private class HummingbirdOverlayView(context: Context) : View(context) {
         val flap = kotlin.math.sin(elapsed / 42.0).toFloat()
         val hover = kotlin.math.sin(elapsed / 175.0).toFloat() * 2.0f * density
         // Gerakan naik-turun dan belokan lembut, tetap dibatasi di area keyboard.
-        val y = (height * 0.57f + swoop + hover).coerceIn(birdHeight * 0.8f, height - birdHeight * 0.8f)
+        val y = (height * 0.50f + swoop + hover).coerceIn(birdHeight * 0.8f, height - birdHeight * 0.8f)
 
         canvas.save()
         canvas.translate(x, y)
