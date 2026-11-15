@@ -1171,7 +1171,7 @@ private class HummingbirdOverlayView(context: Context) : View(context) {
         when {
             elapsed < firstFlight -> {
                 val p = elapsed / firstFlight.toFloat()
-                x = -birdWidth + (width + birdWidth * 0.25f) * p
+                x = -birdWidth + (width * 0.34f + birdWidth) * p
                 direction = 1f
             }
             elapsed < firstHoverEnd -> {
