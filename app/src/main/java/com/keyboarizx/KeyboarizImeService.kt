@@ -1490,10 +1490,12 @@ private class CustomGifOverlayView private constructor(
         val drawWidth = movie.width() * scale
         val drawHeight = movie.height() * scale
         val left = (width - drawWidth) / 2f
-        val top = (height - drawHeight) / 2f
+        // Area animasi dibatasi maksimal 260dp, bukan satu layar penuh.
+        val animationAreaHeight = minOf(height.toFloat(), 260f * density)
+        val top = (animationAreaHeight - drawHeight) / 2f
 
         val save = canvas.save()
-        canvas.clipRect(0, 0, width, height)
+        canvas.clipRect(0f, 0f, width.toFloat(), animationAreaHeight)
         canvas.translate(left, top)
         canvas.scale(scale, scale)
         movie.draw(canvas, 0f, 0f)
