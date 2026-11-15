@@ -54,6 +54,7 @@ class KeyboarizImeService : InputMethodService() {
     private var deleting = false
     private var enterButton: Button? = null
     private var rizboardEnterButton: Button? = null
+    private var lastRizboardInsertedText: String? = null
 
     // Rekam salinan selama layanan IME masih hidup, termasuk saat tampilan keyboard tertutup.
     private val clipboardListener = ClipboardManager.OnPrimaryClipChangedListener {
@@ -134,7 +135,7 @@ class KeyboarizImeService : InputMethodService() {
                 customMode = true
                 setInputView(createKeyboardView())
             }
-            makeToolButton("HAPUS", 0.9f, Color.rgb(230, 105, 105)) { deleteOne() }
+            makeToolButton("HAPUS", 0.9f, Color.rgb(230, 105, 105)) { deleteLastRizboardText() }
             rizboardEnterButton = makeToolButton(enterKeyLabel(), 1.25f, functionBorder) {
                 performEnterAction()
             }
@@ -182,7 +183,10 @@ class KeyboarizImeService : InputMethodService() {
                                 borderColor = if (customMode) customBorder else rizboardBorder
                             )
                             setPadding(dp(3), 0, dp(3), 0)
-                            setOnClickListener { currentInputConnection?.commitText(value, 1) }
+                            setOnClickListener {
+                                currentInputConnection?.commitText(value, 1)
+                                lastRizboardInsertedText = value
+                            }
                         }
                         row.addView(key, LinearLayout.LayoutParams(0, dp(46), 1f).apply {
                             setMargins(dp(2), dp(2), dp(2), dp(2))
@@ -854,6 +858,23 @@ class KeyboarizImeService : InputMethodService() {
                     setInputView(createKeyboardView())
                 }
             }
+        }
+    }
+
+    private fun deleteLastRizboardText() {
+        val connection = currentInputConnection ?: return
+        val lastText = lastRizboardInsertedText
+        if (lastText.isNullOrEmpty()) {
+            Toast.makeText(this, "Belum ada teks RIZBOARD/CUSTOM yang dimasukkan.", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        val beforeCursor = connection.getTextBeforeCursor(lastText.length, 0)?.toString().orEmpty()
+        if (beforeCursor.endsWith(lastText)) {
+            connection.deleteSurroundingText(lastText.length, 0)
+            lastRizboardInsertedText = null
+        } else {
+            Toast.makeText(this, "Teks terakhir tidak tepat di belakang kursor.", Toast.LENGTH_SHORT).show()
         }
     }
 
