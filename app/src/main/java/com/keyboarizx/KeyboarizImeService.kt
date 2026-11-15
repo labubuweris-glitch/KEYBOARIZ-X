@@ -52,6 +52,7 @@ class KeyboarizImeService : InputMethodService() {
     }
     private var deleting = false
     private var enterButton: Button? = null
+    private var rizboardEnterButton: Button? = null
 
     // Rekam salinan selama layanan IME masih hidup, termasuk saat tampilan keyboard tertutup.
     private val clipboardListener = ClipboardManager.OnPrimaryClipChangedListener {
@@ -94,7 +95,7 @@ class KeyboarizImeService : InputMethodService() {
 
         val toolRow = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
 
-        fun makeToolButton(label: String, weight: Float, onClick: () -> Unit) {
+        fun makeToolButton(label: String, weight: Float, onClick: () -> Unit): Button {
             val button = Button(this).apply {
                 text = label
                 textSize = 13f
@@ -110,13 +111,14 @@ class KeyboarizImeService : InputMethodService() {
             val params = LinearLayout.LayoutParams(0, dp(36), weight)
             params.setMargins(dp(2), dp(1), dp(2), dp(3))
             toolRow.addView(button, params)
+            return button
         }
 
         if (rizboardMode) {
             makeToolButton("RIZBOARD", 1.5f) { }
             makeToolButton("HAPUS", 1f) { deleteOne() }
-            makeToolButton("BARIS BARU", 1.5f) {
-                currentInputConnection?.commitText("\n", 1)
+            rizboardEnterButton = makeToolButton(enterKeyLabel(), 1.5f) {
+                performEnterAction()
             }
             makeToolButton("✕", 0.6f) {
                 rizboardMode = false
@@ -717,7 +719,24 @@ class KeyboarizImeService : InputMethodService() {
     }
 
     private fun refreshEnterKey() {
-        enterButton?.text = enterKeyLabel()
+        val label = enterKeyLabel()
+        enterButton?.text = label
+        rizboardEnterButton?.text = label
+    }
+
+    private fun performEnterAction() {
+        val connection = currentInputConnection ?: return
+        val action = currentInputEditorInfo?.imeOptions
+            ?.and(EditorInfo.IME_MASK_ACTION)
+            ?: EditorInfo.IME_ACTION_NONE
+
+        // Samakan perilaku tombol Enter utama dan tombol Enter di RIZBOARD.
+        when (action) {
+            EditorInfo.IME_ACTION_SEARCH,
+            EditorInfo.IME_ACTION_GO,
+            EditorInfo.IME_ACTION_SEND -> connection.performEditorAction(action)
+            else -> connection.commitText("\n", 1)
+        }
     }
 
     override fun onStartInput(attribute: EditorInfo?, restarting: Boolean) {
@@ -761,20 +780,7 @@ class KeyboarizImeService : InputMethodService() {
                 }
                 setInputView(createKeyboardView())
             }
-            "↵" -> {
-                val action = currentInputEditorInfo?.imeOptions
-                    ?.and(EditorInfo.IME_MASK_ACTION)
-                    ?: EditorInfo.IME_ACTION_NONE
-
-                // Keep only explicit Search, Go and Send actions.
-                // NEXT, DONE and all other actions insert a newline.
-                when (action) {
-                    EditorInfo.IME_ACTION_SEARCH,
-                    EditorInfo.IME_ACTION_GO,
-                    EditorInfo.IME_ACTION_SEND -> connection.performEditorAction(action)
-                    else -> connection.commitText("\n", 1)
-                }
-            }
+            "↵" -> performEnterAction()
             "SPACE", "SPACE_ICON" -> connection.commitText(" ", 1)
             "BARIS_BARU" -> connection.commitText("\n", 1)
             "?123" -> {
