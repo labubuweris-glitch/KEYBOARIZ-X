@@ -1173,40 +1173,55 @@ private class HummingbirdOverlayView(context: Context) : View(context) {
 
         val x: Float
         val direction: Float
+        val swoop: Float
+        val bank: Float
         when {
             elapsed < firstFlight -> {
                 val p = elapsed / firstFlight.toFloat()
                 x = -birdWidth + (width * 0.34f + birdWidth) * p
                 direction = 1f
+                swoop = kotlin.math.sin(p * Math.PI * 2.0).toFloat() * height * 0.105f
+                bank = kotlin.math.cos(p * Math.PI * 2.0).toFloat() * 13f
             }
             elapsed < firstHoverEnd -> {
-                x = width * 0.34f
+                val t = (elapsed - firstFlight) / 1000f
+                x = width * 0.34f + kotlin.math.sin(t * 2.2f).toFloat() * birdWidth * 0.10f
                 direction = 1f
+                swoop = kotlin.math.sin(t * 2.4f).toFloat() * height * 0.025f
+                bank = kotlin.math.sin(t * 2.2f).toFloat() * 8f
             }
             elapsed < secondFlightEnd -> {
                 val p = (elapsed - firstHoverEnd) / (secondFlightEnd - firstHoverEnd).toFloat()
                 x = width * 0.34f + (width * 0.72f) * p
                 direction = 1f
+                swoop = kotlin.math.sin(p * Math.PI * 3.0).toFloat() * height * 0.115f
+                bank = kotlin.math.sin(p * Math.PI * 3.0).toFloat() * 17f
             }
             elapsed < secondHoverEnd -> {
-                x = width * 1.06f
+                val t = (elapsed - secondFlightEnd) / 1000f
+                x = width * 1.06f + kotlin.math.sin(t * 2.0f).toFloat() * birdWidth * 0.08f
                 direction = 1f
+                swoop = kotlin.math.sin(t * 2.5f).toFloat() * height * 0.022f
+                bank = kotlin.math.sin(t * 2.0f).toFloat() * 8f
             }
             else -> {
                 val p = (elapsed - secondHoverEnd) / (12800L - secondHoverEnd).toFloat()
                 x = width * 1.06f - (width + birdWidth * 0.2f) * p
                 direction = -1f
+                swoop = kotlin.math.sin(p * Math.PI * 2.5).toFloat() * height * 0.105f
+                bank = kotlin.math.cos(p * Math.PI * 2.5).toFloat() * 15f
             }
         }
 
         val flap = kotlin.math.sin(elapsed / 42.0).toFloat()
         val hover = kotlin.math.sin(elapsed / 175.0).toFloat() * 2.0f * density
-        // Jalur terbang berada di area huruf, sedikit di atas pusat baris tombol.
-        val y = height * 0.57f + hover
+        // Gerakan naik-turun dan belokan lembut, tetap dibatasi di area keyboard.
+        val y = (height * 0.57f + swoop + hover).coerceIn(birdHeight * 0.8f, height - birdHeight * 0.8f)
 
         canvas.save()
         canvas.translate(x, y)
         if (direction < 0f) canvas.scale(-1f, 1f)
+        canvas.rotate(bank * direction)
 
         // Badan mungil hijau zamrud dengan gradasi sederhana.
         bodyPaint.shader = android.graphics.LinearGradient(
