@@ -11,6 +11,7 @@ import android.graphics.Paint
 import android.graphics.Path
 import android.graphics.RectF
 import android.graphics.drawable.Drawable
+import android.graphics.drawable.GradientDrawable
 import android.graphics.ColorFilter
 import android.graphics.PixelFormat
 import android.os.Handler
@@ -24,6 +25,7 @@ import android.view.inputmethod.EditorInfo
 import android.view.inputmethod.ExtractedTextRequest
 import java.util.Locale
 import android.widget.Button
+import android.widget.FrameLayout
 import android.widget.LinearLayout
 import android.widget.PopupMenu
 import android.widget.PopupWindow
@@ -617,7 +619,30 @@ class KeyboarizImeService : InputMethodService() {
                 // Hilangkan celah mati pada area sentuh: batas tombol saling berdempetan,
                 // sementara inset drawable tetap menjaga jarak visual antar bentuk tombol.
                 params.setMargins(0, dp(2), 0, dp(2))
-                row.addView(button, params)
+                if (!numberMode && alternateCharacters.containsKey(label)) {
+                    // Titik kecil menandai tombol yang memiliki karakter alternatif saat ditekan lama.
+                    val keyContainer = FrameLayout(this)
+                    keyContainer.addView(button, FrameLayout.LayoutParams(
+                        FrameLayout.LayoutParams.MATCH_PARENT,
+                        FrameLayout.LayoutParams.MATCH_PARENT
+                    ))
+                    val indicator = View(this).apply {
+                        background = GradientDrawable().apply {
+                            shape = GradientDrawable.OVAL
+                            setColor(Color.rgb(125, 190, 220))
+                        }
+                        isClickable = false
+                        isFocusable = false
+                    }
+                    keyContainer.addView(indicator, FrameLayout.LayoutParams(
+                        dp(4), dp(4), Gravity.TOP or Gravity.END
+                    ).apply {
+                        setMargins(0, dp(6), dp(6), 0)
+                    })
+                    row.addView(keyContainer, params)
+                } else {
+                    row.addView(button, params)
+                }
             }
             root.addView(row)
         }
