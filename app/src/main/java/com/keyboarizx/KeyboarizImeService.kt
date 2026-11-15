@@ -631,6 +631,8 @@ class KeyboarizImeService : InputMethodService() {
                             shape = GradientDrawable.OVAL
                             setColor(Color.rgb(125, 190, 220))
                         }
+                        // Tombol Android memiliki elevation bawaan; naikkan titik agar tampil di atas tombol.
+                        elevation = dp(8).toFloat()
                         isClickable = false
                         isFocusable = false
                     }
