@@ -1027,4 +1027,11 @@ private class KeyShapeDrawable(
                 val y = rect.top + rect.height() * point.second
                 if (index == 0) moveTo(x, y) else lineTo(x, y)
             }
-            close()
+            close()        }
+    }
+
+    override fun setAlpha(alpha: Int) { paint.alpha = alpha }
+    override fun setColorFilter(colorFilter: ColorFilter?) { paint.colorFilter = colorFilter }
+    @Deprecated("Deprecated in Java")
+    override fun getOpacity(): Int = PixelFormat.TRANSLUCENT
+}
