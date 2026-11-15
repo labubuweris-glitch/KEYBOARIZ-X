@@ -453,6 +453,14 @@ class KeyboarizImeService : InputMethodService() {
                 customMode = true
                 setInputView(createKeyboardView())
             }
+            makeToolButton("1+2", 1f, numberBorder) {
+                clipboardMode = false
+                rizboardMode = false
+                customMode = false
+                numberMode = true
+                symbolPage = 3
+                setInputView(createKeyboardView())
+            }
             root.addView(toolRow)
         }
 
