@@ -9,6 +9,7 @@ import android.graphics.Typeface
 import android.graphics.Canvas
 import android.graphics.Paint
 import android.graphics.Path
+import android.graphics.Movie
 import android.graphics.RectF
 import android.graphics.drawable.Drawable
 import android.graphics.drawable.GradientDrawable
@@ -684,9 +685,11 @@ class KeyboarizImeService : InputMethodService() {
             addRow(listOf("?123", ",", "SPACE", ".", "↵"),
                 listOf(1.4f,0.8f,3.8f,0.8f,1.4f))
         }
-        // Kolibri digambar melalui ViewGroupOverlay agar tidak ikut mengukur
-        // tinggi input view atau menggeser layout keyboard.
-        if (!numberMode) withHummingbirdOverlay(root)
+        // GIF opsional digambar melalui overlay agar tidak mengubah tinggi keyboard.
+        // Default-nya nonaktif sampai pengguna memilih GIF dari galeri.
+        if (!numberMode && prefs.getBoolean("custom_gif_enabled", false)) {
+            prefs.getString("custom_gif_uri", null)?.let { withCustomGifOverlay(root, it) }
+        }
         return root
     }
 
@@ -704,6 +707,26 @@ class KeyboarizImeService : InputMethodService() {
                 View.MeasureSpec.makeMeasureSpec(h, View.MeasureSpec.EXACTLY)
             )
             bird.layout(0, 0, w, h)
+        }
+
+        group.addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ -> fitOverlay() }
+        group.post { fitOverlay() }
+    }
+
+    private fun withCustomGifOverlay(keyboard: View, uriText: String) {
+        val group = keyboard as? ViewGroup ?: return
+        val gifView = CustomGifOverlayView.create(this, uriText) ?: return
+        group.overlay.add(gifView)
+
+        fun fitOverlay() {
+            val w = group.width
+            val h = group.height
+            if (w <= 0 || h <= 0) return
+            gifView.measure(
+                View.MeasureSpec.makeMeasureSpec(w, View.MeasureSpec.EXACTLY),
+                View.MeasureSpec.makeMeasureSpec(h, View.MeasureSpec.EXACTLY)
+            )
+            gifView.layout(0, 0, w, h)
         }
 
         group.addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ -> fitOverlay() }
@@ -1416,4 +1439,78 @@ private class KeyShapeDrawable(
     override fun setColorFilter(colorFilter: ColorFilter?) { paint.colorFilter = colorFilter }
     @Deprecated("Deprecated in Java")
     override fun getOpacity(): Int = PixelFormat.TRANSLUCENT
+}
+
+
+/**
+ * GIF transparan opsional dari galeri. Ukuran dibatasi 56dp dan hanya digambar
+ * di dalam batas keyboard; overlay tidak menerima sentuhan sehingga tombol tetap aktif.
+ */
+private class CustomGifOverlayView private constructor(
+    context: Context,
+    private val movie: Movie
+) : View(context) {
+    private val density = resources.displayMetrics.density
+    private val maxSize = 56f * density
+    private val startedAt = android.os.SystemClock.uptimeMillis()
+    private val frame = object : Runnable {
+        override fun run() {
+            if (!isAttachedToWindow) return
+            invalidate()
+            postDelayed(this, 40L)
+        }
+    }
+
+    init {
+        isClickable = false
+        isFocusable = false
+        importantForAccessibility = IMPORTANT_FOR_ACCESSIBILITY_NO
+        setWillNotDraw(false)
+    }
+
+    override fun onAttachedToWindow() {
+        super.onAttachedToWindow()
+        removeCallbacks(frame)
+        post(frame)
+    }
+
+    override fun onDetachedFromWindow() {
+        removeCallbacks(frame)
+        super.onDetachedFromWindow()
+    }
+
+    override fun onDraw(canvas: Canvas) {
+        super.onDraw(canvas)
+        if (width <= 0 || height <= 0 || movie.width() <= 0 || movie.height() <= 0) return
+
+        val duration = movie.duration().coerceAtLeast(1000)
+        movie.setTime(((android.os.SystemClock.uptimeMillis() - startedAt) % duration).toInt())
+
+        val scale = minOf(maxSize / movie.width(), maxSize / movie.height())
+        val drawWidth = movie.width() * scale
+        val drawHeight = movie.height() * scale
+        val left = (width - drawWidth) / 2f
+        val top = (height - drawHeight) / 2f
+
+        val save = canvas.save()
+        canvas.clipRect(0, 0, width, height)
+        canvas.translate(left, top)
+        canvas.scale(scale, scale)
+        movie.draw(canvas, 0f, 0f)
+        canvas.restoreToCount(save)
+    }
+
+    companion object {
+        fun create(context: Context, uriText: String): CustomGifOverlayView? {
+            return try {
+                val uri = android.net.Uri.parse(uriText)
+                val stream = context.contentResolver.openInputStream(uri) ?: return null
+                val movie = stream.use { Movie.decodeStream(it) } ?: return null
+                if (movie.width() <= 0 || movie.height() <= 0) null
+                else CustomGifOverlayView(context, movie)
+            } catch (_: Exception) {
+                null
+            }
+        }
+    }
 }
