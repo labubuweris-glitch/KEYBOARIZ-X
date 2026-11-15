@@ -26,6 +26,7 @@ import java.util.Locale
 import android.widget.Button
 import android.widget.LinearLayout
 import android.widget.PopupMenu
+import android.widget.PopupWindow
 import android.widget.ScrollView
 import android.widget.TextView
 import android.widget.Toast
@@ -547,10 +548,43 @@ class KeyboarizImeService : InputMethodService() {
                                 else -> true
                             }
                         }
+                    } else if (!numberMode && alternateCharacters.containsKey(label)) {
+                        // Huruf beraksen: ketuk untuk huruf biasa, tahan untuk membuka pilihan.
+                        var pointerDown = false
+                        var alternatePopup: PopupWindow? = null
+                        val showAlternates = Runnable {
+                            if (pointerDown && alternatePopup == null) {
+                                alternatePopup = showAlternateCharacters(this, label)
+                            }
+                        }
+                        setOnTouchListener { _, event ->
+                            when (event.actionMasked) {
+                                MotionEvent.ACTION_DOWN -> {
+                                    pointerDown = true
+                                    handler.removeCallbacks(showAlternates)
+                                    handler.postDelayed(showAlternates, 350L)
+                                    true
+                                }
+                                MotionEvent.ACTION_UP -> {
+                                    pointerDown = false
+                                    handler.removeCallbacks(showAlternates)
+                                    if (alternatePopup == null) handleKey(label)
+                                    true
+                                }
+                                MotionEvent.ACTION_CANCEL -> {
+                                    pointerDown = false
+                                    handler.removeCallbacks(showAlternates)
+                                    true
+                                }
+                                MotionEvent.ACTION_MOVE -> true
+                                else -> true
+                            }
+                        }
                     } else {
                         // Proses tombol pada ACTION_DOWN agar input tidak menunggu jari diangkat.
                         setOnTouchListener { _, event ->
-                            when (event.actionMasked) {                                MotionEvent.ACTION_DOWN -> {
+                            when (event.actionMasked) {
+                                MotionEvent.ACTION_DOWN -> {
                                     if ((label == "1+2" || label == "1 2 3 4") && numberMode) {
                                         symbolPage = if (symbolPage == 3) 2 else 3
                                         setInputView(createKeyboardView())
@@ -777,6 +811,76 @@ class KeyboarizImeService : InputMethodService() {
         refreshEnterKey()
         // Ambil salinan terbaru saat keyboard dibuka kembali.
         captureCurrentClipboard()
+    }
+
+    private val alternateCharacters = mapOf(
+        "e" to listOf("é", "è", "ê", "ë", "ĕ", "ę"),
+        "t" to listOf("ţ", "ț"),
+        "y" to listOf("ÿ"),
+        "u" to listOf("ű", "ú", "ü", "û", "ù"),
+        "i" to listOf("ł", "í", "ì", "î", "ï"),
+        "o" to listOf("ő", "õ", "ó", "ò", "ö", "ô"),
+        "a" to listOf("à", "â", "ä", "á", "ă", "ą"),
+        "s" to listOf("š", "ś", "ş", "ș", "ß"),
+        "d" to listOf("đ"),
+        "z" to listOf("ž", "ź", "ż"),
+        "c" to listOf("č", "ć", "ç"),
+        "n" to listOf("ń", "ñ")
+    )
+
+    private fun showAlternateCharacters(anchor: View, baseKey: String): PopupWindow? {
+        val options = alternateCharacters[baseKey] ?: return null
+        val textColor = prefs.getInt("textColor", Color.WHITE)
+        val keyColor = prefs.getInt("keyColor", Color.rgb(37, 55, 70))
+        val keyShape = prefs.getString("keyShape", "ROUNDED") ?: "ROUNDED"
+
+        val row = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            setPadding(dp(4), dp(4), dp(4), dp(4))
+            background = KeyShapeDrawable(
+                keyColor, keyShape, resources.displayMetrics.density,
+                borderColor = Color.rgb(69, 184, 232)
+            )
+        }
+        lateinit var popup: PopupWindow
+        options.forEach { character ->
+            val key = TextView(this).apply {
+                text = if (shiftState > 0) character.uppercase(Locale.getDefault()) else character
+                textSize = 18f
+                gravity = Gravity.CENTER
+                setTextColor(textColor)
+                minWidth = dp(38)
+                setPadding(dp(5), 0, dp(5), 0)
+                setOnClickListener {
+                    val output = if (shiftState > 0) character.uppercase(Locale.getDefault()) else character
+                    currentInputConnection?.commitText(output, 1)
+                    if (shiftState == 1) {
+                        shiftState = 0
+                        setInputView(createKeyboardView())
+                    }
+                    popup.dismiss()
+                }
+            }
+            row.addView(key, LinearLayout.LayoutParams(dp(40), dp(42)))
+        }
+
+        popup = PopupWindow(
+            row,
+            LinearLayout.LayoutParams.WRAP_CONTENT,
+            LinearLayout.LayoutParams.WRAP_CONTENT,
+            true
+        ).apply {
+            setBackgroundDrawable(android.graphics.drawable.ColorDrawable(Color.TRANSPARENT))
+            elevation = dp(8).toFloat()
+            isOutsideTouchable = true
+        }
+        row.measure(
+            View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED),
+            View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED)
+        )
+        val xOffset = (anchor.width - row.measuredWidth) / 2
+        popup.showAsDropDown(anchor, xOffset, -dp(52))
+        return popup
     }
 
     private fun handleKey(key: String) {
