@@ -25,6 +25,15 @@ jobs:
           gradle-version: 8.9
       - name: Build optimized Release APK
         run: gradle --no-daemon :app:assembleRelease
+      - name: Verify APK before publishing
+        run: |
+          APK=app/build/outputs/apk/release/app-release.apk
+          test -s "$APK"
+          unzip -t "$APK"
+          APKSIGNER=$(find "$ANDROID_HOME/build-tools" -name apksigner | sort -V | tail -n 1)
+          AAPT=$(find "$ANDROID_HOME/build-tools" -name aapt | sort -V | tail -n 1)
+          "$APKSIGNER" verify --verbose "$APK"
+          "$AAPT" dump badging "$APK" | grep -F "package: name='com.keyboarizx'"
       - name: Publish APK to GitHub Releases
         uses: softprops/action-gh-release@v2
         with:
