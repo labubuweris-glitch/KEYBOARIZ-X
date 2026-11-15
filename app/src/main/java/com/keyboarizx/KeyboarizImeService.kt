@@ -684,25 +684,30 @@ class KeyboarizImeService : InputMethodService() {
             addRow(listOf("?123", ",", "SPACE", ".", "↵"),
                 listOf(1.4f,0.8f,3.8f,0.8f,1.4f))
         }
-        // Kolibri hanya tampil pada keyboard huruf utama; mode khusus tetap bersih.
-        return if (!numberMode) withHummingbirdOverlay(root) else root
+        // Kolibri digambar melalui ViewGroupOverlay agar tidak ikut mengukur
+        // tinggi input view atau menggeser layout keyboard.
+        if (!numberMode) withHummingbirdOverlay(root)
+        return root
     }
 
-    private fun withHummingbirdOverlay(keyboard: View): View {
-        return HummingbirdKeyboardFrame(this).apply {
-            clipChildren = false
-            clipToPadding = false
-            addView(keyboard, FrameLayout.LayoutParams(
-                FrameLayout.LayoutParams.MATCH_PARENT,
-                FrameLayout.LayoutParams.WRAP_CONTENT
-            ))
-            addView(HummingbirdOverlayView(this@KeyboarizImeService),
-                FrameLayout.LayoutParams(
-                    FrameLayout.LayoutParams.MATCH_PARENT,
-                    FrameLayout.LayoutParams.MATCH_PARENT
-                )
+    private fun withHummingbirdOverlay(keyboard: View) {
+        val group = keyboard as? ViewGroup ?: return
+        val bird = HummingbirdOverlayView(this)
+        group.overlay.add(bird)
+
+        fun fitOverlay() {
+            val w = group.width
+            val h = group.height
+            if (w <= 0 || h <= 0) return
+            bird.measure(
+                View.MeasureSpec.makeMeasureSpec(w, View.MeasureSpec.EXACTLY),
+                View.MeasureSpec.makeMeasureSpec(h, View.MeasureSpec.EXACTLY)
             )
+            bird.layout(0, 0, w, h)
         }
+
+        group.addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ -> fitOverlay() }
+        group.post { fitOverlay() }
     }
 
     private fun loadRizboardButtons(): List<String> {
@@ -1109,35 +1114,6 @@ class KeyboarizImeService : InputMethodService() {
             (Color.green(base) * inverse + Color.green(tint) * amount).toInt(),
             (Color.blue(base) * inverse + Color.blue(tint) * amount).toInt()
         )
-    }
-}
-
-/**
- * Keeps the IME at the keyboard's natural height even when Android measures the
- * input view with MATCH_PARENT. The overlay is measured to that same keyboard area.
- */
-private class HummingbirdKeyboardFrame(context: Context) : FrameLayout(context) {
-    override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
-        val width = MeasureSpec.getSize(widthMeasureSpec)
-        val availableHeight = MeasureSpec.getSize(heightMeasureSpec)
-        val childWidthSpec = MeasureSpec.makeMeasureSpec(width, MeasureSpec.EXACTLY)
-        val childHeightSpec = MeasureSpec.makeMeasureSpec(availableHeight, MeasureSpec.AT_MOST)
-
-        val keyboard = getChildAt(0)
-        keyboard.measure(childWidthSpec, childHeightSpec)
-        val measuredHeight = keyboard.measuredHeight
-
-        setMeasuredDimension(
-            resolveSize(width, widthMeasureSpec),
-            measuredHeight
-        )
-
-        if (childCount > 1) {
-            getChildAt(1).measure(
-                MeasureSpec.makeMeasureSpec(measuredWidth, MeasureSpec.EXACTLY),
-                MeasureSpec.makeMeasureSpec(measuredHeight, MeasureSpec.EXACTLY)
-            )
-        }
     }
 }
 
