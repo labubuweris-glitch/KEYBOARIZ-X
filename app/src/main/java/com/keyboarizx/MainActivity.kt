@@ -283,11 +283,11 @@ class MainActivity : Activity() {
             textSize = 13f
             setTextColor(Color.LTGRAY)
         })
-        val routeNames = listOf("Lurus", "Zig-zag", "Gelombang", "Melingkar", "Ular (tembus dinding)")
-        val routeValues = listOf("STRAIGHT", "ZIGZAG", "WAVE", "CIRCLE", "SNAKE")
+        val routeNames = listOf("Ular (tembus dinding)", "Lurus", "Zig-zag", "Gelombang", "Melingkar")
+        val routeValues = listOf("SNAKE", "STRAIGHT", "ZIGZAG", "WAVE", "CIRCLE")
         val routeSpinner = Spinner(this).apply {
             adapter = ArrayAdapter(this@MainActivity, android.R.layout.simple_spinner_dropdown_item, routeNames)
-            setSelection(routeValues.indexOf(prefs.getString("keyboard_animation_route", "ZIGZAG")).coerceAtLeast(0))
+            setSelection(routeValues.indexOf(prefs.getString("keyboard_animation_route", "SNAKE")).coerceAtLeast(0))
         }
         root.addView(routeSpinner, LinearLayout.LayoutParams(-1, dp(52)))
         routeSpinner.onItemSelectedListener = object : android.widget.AdapterView.OnItemSelectedListener {
@@ -295,6 +295,27 @@ class MainActivity : Activity() {
             override fun onItemSelected(parent: android.widget.AdapterView<*>?, view: android.view.View?, position: Int, id: Long) {
                 prefs.edit().putString("keyboard_animation_route", routeValues[position]).apply()
                 Toast.makeText(this@MainActivity, "Jalur animasi disimpan. Buka ulang keyboard untuk menerapkan.", Toast.LENGTH_SHORT).show()
+            }
+        }
+
+        section(root, "WARNA KARAKTER")
+        root.addView(TextView(this).apply {
+            text = "Atur warna tampilan semua karakter animasi. Original mempertahankan warna asli setiap karakter."
+            textSize = 13f
+            setTextColor(Color.LTGRAY)
+        })
+        val characterColorNames = listOf("Original", "Hitam pekat", "Putih", "Merah", "Kuning", "Hijau neon", "Biru neon", "Ungu")
+        val characterColorValues = listOf("ORIGINAL", "#171717", "#FFFFFF", "#FF3B30", "#FFD60A", "#39FF14", "#00BFFF", "#BF5AF2")
+        val characterColorSpinner = Spinner(this).apply {
+            adapter = ArrayAdapter(this@MainActivity, android.R.layout.simple_spinner_dropdown_item, characterColorNames)
+            setSelection(characterColorValues.indexOf(prefs.getString("keyboard_character_color", "ORIGINAL")).coerceAtLeast(0))
+        }
+        root.addView(characterColorSpinner, LinearLayout.LayoutParams(-1, dp(52)))
+        characterColorSpinner.onItemSelectedListener = object : android.widget.AdapterView.OnItemSelectedListener {
+            override fun onNothingSelected(parent: android.widget.AdapterView<*>?) {}
+            override fun onItemSelected(parent: android.widget.AdapterView<*>?, view: android.view.View?, position: Int, id: Long) {
+                prefs.edit().putString("keyboard_character_color", characterColorValues[position]).apply()
+                Toast.makeText(this@MainActivity, "Warna karakter disimpan. Buka ulang keyboard untuk menerapkan.", Toast.LENGTH_SHORT).show()
             }
         }
 
