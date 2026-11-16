@@ -17,40 +17,180 @@ class MainActivity : Activity() {
     private val prefs by lazy { getSharedPreferences("keyboard_settings", Context.MODE_PRIVATE) }
     private val cyan = Color.rgb(0, 207, 255)
     private val dark = Color.rgb(8, 13, 20)
-    private val palettes = listOf(
-        Palette("RizColor", Color.parseColor("#F1C40F"), Color.parseColor("#7F8C8D"), Color.parseColor("#34495E")),
-        Palette("Hitam Cyan", Color.WHITE, Color.rgb(37, 55, 70), Color.rgb(17, 28, 39)),
-        Palette("Hitam Merah", Color.WHITE, Color.rgb(91, 35, 42), Color.rgb(28, 14, 18)),
-        Palette("Hitam Ungu", Color.WHITE, Color.rgb(75, 48, 103), Color.rgb(25, 17, 35)),
-        Palette("Hitam Hijau", Color.WHITE, Color.rgb(35, 83, 61), Color.rgb(12, 27, 20)),
-        Palette("Hitam Emas", Color.rgb(255, 225, 157), Color.rgb(91, 70, 35), Color.rgb(29, 24, 15)),
-        Palette("Hitam Biru", Color.WHITE, Color.rgb(39, 66, 112), Color.rgb(13, 21, 37)),
-        Palette("Hitam Oranye", Color.WHITE, Color.rgb(112, 62, 29), Color.rgb(31, 20, 13)),
-        Palette("Hitam Pink", Color.WHITE, Color.rgb(105, 43, 78), Color.rgb(31, 16, 26)),
-        Palette("Hitam Putih", Color.WHITE, Color.rgb(65, 65, 65), Color.rgb(20, 20, 20)),
-        Palette("Ocean", Color.WHITE, Color.rgb(29, 91, 108), Color.rgb(13, 37, 46)),
-        Palette("Forest", Color.WHITE, Color.rgb(48, 91, 55), Color.rgb(17, 34, 20)),
-        Palette("Wine", Color.WHITE, Color.rgb(112, 42, 61), Color.rgb(43, 17, 26)),
-        Palette("Graphite", Color.WHITE, Color.rgb(75, 83, 92), Color.rgb(31, 35, 40)),
-        Palette("Silver", Color.rgb(25, 31, 39), Color.rgb(194, 204, 214), Color.rgb(224, 230, 236)),
-        Palette("Arctic", Color.rgb(19, 45, 58), Color.rgb(177, 225, 241), Color.rgb(224, 244, 250)),
-        Palette("Cloud", Color.rgb(28, 42, 65), Color.rgb(202, 218, 242), Color.rgb(237, 243, 251)),
-        Palette("Rose", Color.rgb(76, 34, 54), Color.rgb(244, 202, 220), Color.rgb(255, 237, 245)),
-        Palette("Emerald", Color.rgb(20, 58, 47), Color.rgb(171, 224, 205), Color.rgb(225, 246, 237))
+    private val defaultTheme = KeyboardTheme(
+        "Default",
+        Color.parseColor("#F1C40F"),
+        Color.BLACK,
+        Color.BLACK,
+        Color.parseColor("#39C6E8"),
+        Color.parseColor("#45B8E8"),
+        Color.parseColor("#5BCD97")
     )
+    private val themePrefsKey = "custom_keyboard_themes"
+    private val selectedThemeKey = "selected_keyboard_theme"
+
+    private data class KeyboardTheme(
+        val name: String, val text: Int, val key: Int, val background: Int,
+        val shortcutBorder: Int, val characterBorder: Int, val functionBorder: Int
+    )
+
+    private fun colorHex(color: Int) = String.format("#%06X", 0xFFFFFF and color)
+
+    private fun loadCustomThemes(): MutableList<KeyboardTheme> {
+        val raw = prefs.getString(themePrefsKey, null) ?: return mutableListOf()
+        return try {
+            val array = JSONArray(raw)
+            (0 until array.length()).mapNotNull { index ->
+                val item = array.optJSONObject(index) ?: return@mapNotNull null
+                KeyboardTheme(
+                    item.optString("name"),
+                    item.optInt("text"), item.optInt("key"), item.optInt("background"),
+                    item.optInt("shortcutBorder"), item.optInt("characterBorder"), item.optInt("functionBorder")
+                ).takeIf { it.name.isNotBlank() }
+            }.toMutableList()
+        } catch (_: Exception) { mutableListOf() }
+    }
+
+    private fun saveCustomThemes(themes: List<KeyboardTheme>) {
+        val array = JSONArray()
+        themes.forEach { theme ->
+            array.put(JSONObject().apply {
+                put("name", theme.name); put("text", theme.text); put("key", theme.key)
+                put("background", theme.background); put("shortcutBorder", theme.shortcutBorder)
+                put("characterBorder", theme.characterBorder); put("functionBorder", theme.functionBorder)
+            })
+        }
+        prefs.edit().putString(themePrefsKey, array.toString()).apply()
+    }
+
+    private fun applyTheme(theme: KeyboardTheme) {
+        prefs.edit()
+            .putString(selectedThemeKey, theme.name)
+            .putInt("textColor", theme.text)
+            .putInt("keyColor", theme.key)
+            .putInt("backgroundColor", theme.background)
+            .putInt("shortcutBorderColor", theme.shortcutBorder)
+            .putInt("characterBorderColor", theme.characterBorder)
+            .putInt("functionBorderColor", theme.functionBorder)
+            .apply()
+    }
+
+    private fun showThemeManager() {
+        fun refresh() {
+            val themes = loadCustomThemes()
+            val labels = listOf("Default  •  tema bawaan") + themes.map { it.name } + listOf("+ Tambah warna kustom")
+            android.app.AlertDialog.Builder(this)
+                .setTitle("Tema Warna Keyboard")
+                .setItems(labels.toTypedArray()) { _, which ->
+                    when {
+                        which == 0 -> {
+                            applyTheme(defaultTheme)
+                            Toast.makeText(this, "Tema Default diterapkan", Toast.LENGTH_SHORT).show()
+                        }
+                        which == labels.lastIndex -> showThemeEditor(null) { refresh() }
+                        else -> {
+                            val selected = themes[which - 1]
+                            android.app.AlertDialog.Builder(this)
+                                .setTitle(selected.name)
+                                .setItems(arrayOf("Terapkan", "Edit", "Hapus")) { _, action ->
+                                    when (action) {
+                                        0 -> {
+                                            applyTheme(selected)
+                                            Toast.makeText(this, "Tema ${selected.name} diterapkan", Toast.LENGTH_SHORT).show()
+                                        }
+                                        1 -> showThemeEditor(selected) { refresh() }
+                                        2 -> android.app.AlertDialog.Builder(this)
+                                            .setMessage("Hapus tema warna ${selected.name}?")
+                                            .setPositiveButton("Hapus") { _, _ ->
+                                                saveCustomThemes(loadCustomThemes().filterNot { it.name == selected.name })
+                                                if (prefs.getString(selectedThemeKey, "Default") == selected.name) applyTheme(defaultTheme)
+                                                refresh()
+                                            }
+                                            .setNegativeButton("Batal", null).show()
+                                    }
+                                }
+                                .setNegativeButton("Batal", null).show()
+                        }
+                    }
+                }
+                .setNegativeButton("Tutup", null)
+                .show()
+        }
+        refresh()
+    }
+
+    private fun showThemeEditor(existing: KeyboardTheme?, onDone: () -> Unit) {
+        val labels = listOf(
+            "Nama tema warna", "Warna tulisan", "Warna tombol", "Warna latar keyboard",
+            "Warna garis Tombol Pintasan", "Warna garis Tombol Karakter", "Warna garis Tombol Fungsi"
+        )
+        val values = listOf(
+            existing?.name ?: "",
+            colorHex(existing?.text ?: defaultTheme.text),
+            colorHex(existing?.key ?: defaultTheme.key),
+            colorHex(existing?.background ?: defaultTheme.background),
+            colorHex(existing?.shortcutBorder ?: defaultTheme.shortcutBorder),
+            colorHex(existing?.characterBorder ?: defaultTheme.characterBorder),
+            colorHex(existing?.functionBorder ?: defaultTheme.functionBorder)
+        )
+        val form = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(20), dp(4), dp(20), 0)
+        }
+        val fields = labels.mapIndexed { index, label ->
+            val input = EditText(this).apply {
+                hint = if (index == 0) label else "$label  (#RRGGBB)"
+                setSingleLine(true)
+                setText(values[index])
+                textSize = 14f
+                if (index == 0) inputType = android.text.InputType.TYPE_CLASS_TEXT or android.text.InputType.TYPE_TEXT_FLAG_CAP_SENTENCES
+            }
+            form.addView(input, LinearLayout.LayoutParams(-1, dp(48)))
+            input
+        }
+        android.app.AlertDialog.Builder(this)
+            .setTitle(if (existing == null) "Tambah tema warna" else "Edit tema warna")
+            .setView(ScrollView(this).apply { addView(form) })
+            .setPositiveButton("Simpan", null)
+            .setNegativeButton("Batal", null)
+            .create().also { dialog ->
+                dialog.setOnShowListener {
+                    dialog.getButton(android.app.AlertDialog.BUTTON_POSITIVE).setOnClickListener {
+                        val name = fields[0].text.toString().trim()
+                        if (name.isBlank() || name.equals("Default", true)) {
+                            Toast.makeText(this, "Nama tema tidak boleh kosong atau Default", Toast.LENGTH_SHORT).show()
+                            return@setOnClickListener
+                        }
+                        try {
+                            val colors = fields.drop(1).map { Color.parseColor(it.text.toString().trim()) }
+                            val themes = loadCustomThemes()
+                            if (themes.any { it.name.equals(name, true) && it.name != existing?.name }) {
+                                Toast.makeText(this, "Nama tema sudah digunakan", Toast.LENGTH_SHORT).show()
+                                return@setOnClickListener
+                            }
+                            val theme = KeyboardTheme(name, colors[0], colors[1], colors[2], colors[3], colors[4], colors[5])
+                            if (existing != null) themes.removeAll { it.name == existing.name }
+                            themes.add(theme)
+                            saveCustomThemes(themes)
+                            applyTheme(theme)
+                            dialog.dismiss()
+                            onDone()
+                            Toast.makeText(this, "Tema $name disimpan dan diterapkan", Toast.LENGTH_SHORT).show()
+                        } catch (_: IllegalArgumentException) {
+                            Toast.makeText(this, "Kode warna tidak valid. Gunakan format #RRGGBB", Toast.LENGTH_LONG).show()
+                        }
+                    }
+                }
+                dialog.show()
+            }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        // Migrasi satu kali agar instalasi lama juga memakai default RizColor tanpa karakter.
-        if (!prefs.getBoolean("rizcolor_default_applied", false)) {
-            prefs.edit()
-                .putString("palette", "RizColor")
-                .putInt("textColor", Color.parseColor("#F1C40F"))
-                .putInt("keyColor", Color.parseColor("#7F8C8D"))
-                .putInt("backgroundColor", Color.parseColor("#34495E"))
-                .putString("keyboard_character", "NONE")
-                .putBoolean("rizcolor_default_applied", true)
-                .apply()
+        // Migrasi sekali ke sistem tema baru: Default hitam-emas, tanpa mengubah pilihan karakter.
+        if (!prefs.getBoolean("keyboard_theme_v2_migrated", false)) {
+            applyTheme(defaultTheme)
+            prefs.edit().putBoolean("keyboard_theme_v2_migrated", true).apply()
         }
         window.statusBarColor = dark
         window.navigationBarColor = dark
@@ -81,97 +221,13 @@ class MainActivity : Activity() {
             (getSystemService(INPUT_METHOD_SERVICE) as InputMethodManager).showInputMethodPicker()
         }
 
-        section(root, "TEMA DAN WARNA")
+        section(root, "TEMA WARNA")
         root.addView(TextView(this).apply {
-            text = "19 tema siap pakai + pilihan warna buatan sendiri"
+            text = "Gunakan tema Default atau buat tema warna sendiri. Tema kustom dapat ditambah, diedit, dan dihapus."
             textSize = 13f
             setTextColor(Color.LTGRAY)
         })
-        val customName = "Warna Kustom"
-        val themeNames = palettes.map { it.name } + customName
-        val customIndex = palettes.size
-        val spinner = Spinner(this).apply {
-            adapter = ArrayAdapter(this@MainActivity, android.R.layout.simple_spinner_dropdown_item, themeNames)
-            setSelection(themeNames.indexOf(prefs.getString("palette", "RizColor")).coerceAtLeast(0))
-        }
-        root.addView(spinner, LinearLayout.LayoutParams(-1, dp(52)))
-
-        val preview = TextView(this).apply {
-            text = "Aa   123   KEYBOARIZ X"
-            textSize = 19f
-            gravity = Gravity.CENTER
-            typeface = Typeface.DEFAULT_BOLD
-            setPadding(dp(12), dp(12), dp(12), dp(12))
-        }
-        root.addView(preview, LinearLayout.LayoutParams(-1, dp(62)))
-        val contrastHint = TextView(this).apply {
-            text = "Pratinjau warna • Warna tersimpan di perangkat"
-            textSize = 11f
-            setTextColor(Color.LTGRAY)
-            setPadding(0, dp(7), 0, 0)
-        }
-        root.addView(contrastHint)
-
-        fun refreshPreview() {
-            val text = prefs.getInt("textColor", Color.WHITE)
-            val key = prefs.getInt("keyColor", Color.rgb(37, 55, 70))
-            preview.setTextColor(text)
-            preview.setBackgroundColor(key)
-        }
-        fun applyPalette(index: Int) {
-            if (index == customIndex) {
-                prefs.edit().putString("palette", customName).apply()
-                if (!prefs.contains("textColor")) prefs.edit().putInt("textColor", Color.WHITE).apply()
-                if (!prefs.contains("keyColor")) prefs.edit().putInt("keyColor", Color.rgb(37, 55, 70)).apply()
-                if (!prefs.contains("backgroundColor")) prefs.edit().putInt("backgroundColor", Color.rgb(17, 28, 39)).apply()
-                refreshPreview()
-            } else {
-                val p = palettes[index]
-                prefs.edit().putString("palette", p.name)
-                    .putInt("textColor", p.text)
-                    .putInt("keyColor", p.key)
-                    .putInt("backgroundColor", p.background).apply()
-                refreshPreview()
-            }
-        }
-        applyPalette(spinner.selectedItemPosition)
-        spinner.onItemSelectedListener = object : android.widget.AdapterView.OnItemSelectedListener {
-            override fun onNothingSelected(parent: android.widget.AdapterView<*>?) {}
-            override fun onItemSelected(parent: android.widget.AdapterView<*>?, view: android.view.View?, position: Int, id: Long) {
-                applyPalette(position)
-            }
-        }
-
-        fun editCustomColor(label: String, preferenceKey: String) {
-            val current = prefs.getInt(preferenceKey, Color.WHITE)
-            val hex = String.format("#%06X", 0xFFFFFF and current)
-            val input = EditText(this).apply {
-                hint = "#RRGGBB"
-                setSingleLine(true)
-                setText(hex)
-                setSelection(text.length)
-            }
-            android.app.AlertDialog.Builder(this)
-                .setTitle(label)
-                .setMessage("Masukkan kode warna HEX, contoh: #00D9FF")
-                .setView(input)
-                .setPositiveButton("Simpan") { _, _ ->
-                    try {
-                        val color = Color.parseColor(input.text.toString().trim())
-                        prefs.edit().putInt(preferenceKey, color).putString("palette", customName).apply()
-                        spinner.setSelection(customIndex)
-                        refreshPreview()
-                    } catch (_: IllegalArgumentException) {
-                        Toast.makeText(this, "Kode warna tidak valid. Gunakan format #RRGGBB", Toast.LENGTH_LONG).show()
-                    }
-                }
-                .setNegativeButton("Batal", null)
-                .show()
-        }
-        addAction(root, "Ubah warna tulisan") { editCustomColor("Warna tulisan", "textColor") }
-        addAction(root, "Ubah warna tombol") { editCustomColor("Warna tombol", "keyColor") }
-        addAction(root, "Ubah warna latar keyboard") { editCustomColor("Warna latar keyboard", "backgroundColor") }
-
+        addAction(root, "Kelola Tema Warna") { showThemeManager() }
 
         section(root, "BENTUK TOMBOL")
         root.addView(TextView(this).apply {
@@ -478,5 +534,4 @@ class MainActivity : Activity() {
     }
 
     private fun dp(value: Int) = (value * resources.displayMetrics.density).toInt()
-    private data class Palette(val name: String, val text: Int, val key: Int, val background: Int)
 }
