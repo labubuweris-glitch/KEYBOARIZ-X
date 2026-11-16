@@ -689,6 +689,7 @@ class KeyboarizImeService : InputMethodService() {
                 "DRAGONFLY" -> withDragonflyOverlay(root)
                 "MUSTANG" -> withMustangOverlay(root)
                 "MOTORCYCLE" -> withMotorcycleOverlay(root)
+                "CHICKEN" -> withChickenOverlay(root)
                 else -> withAntOverlay(root)
             }
         }
@@ -732,6 +733,20 @@ class KeyboarizImeService : InputMethodService() {
             if (w <= 0 || h <= 0) return
             bike.measure(View.MeasureSpec.makeMeasureSpec(w, View.MeasureSpec.EXACTLY), View.MeasureSpec.makeMeasureSpec(h, View.MeasureSpec.EXACTLY))
             bike.layout(0, 0, w, h)
+        }
+        group.addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ -> fit() }
+        group.post { fit() }
+    }
+
+    private fun withChickenOverlay(keyboard: View) {
+        val group = keyboard as? ViewGroup ?: return
+        val chicken = ChickenOverlayView(this)
+        group.overlay.add(chicken)
+        fun fit() {
+            val w = group.width; val h = group.height
+            if (w <= 0 || h <= 0) return
+            chicken.measure(View.MeasureSpec.makeMeasureSpec(w, View.MeasureSpec.EXACTLY), View.MeasureSpec.makeMeasureSpec(h, View.MeasureSpec.EXACTLY))
+            chicken.layout(0, 0, w, h)
         }
         group.addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ -> fit() }
         group.post { fit() }
@@ -1706,6 +1721,90 @@ private class MotorcycleOverlayView(context: Context) : View(context) {
         p.color = Color.WHITE
         canvas.drawOval(RectF(0.5f*d, -9.8f*d, 2.4f*d, -9.1f*d), p)
 
+        canvas.restore()
+    }
+}
+
+
+/** Ayam berjalan tampak samping dengan gerakan kaki bergantian di jalur zig-zag keyboard. */
+private class ChickenOverlayView(context: Context) : View(context) {
+    private val d = resources.displayMetrics.density
+    private val p = Paint(Paint.ANTI_ALIAS_FLAG).apply { strokeCap = Paint.Cap.ROUND; strokeJoin = Paint.Join.ROUND }
+    private val started = android.os.SystemClock.uptimeMillis()
+    private val frame = object : Runnable {
+        override fun run() { if (!isAttachedToWindow) return; invalidate(); postDelayed(this, 34L) }
+    }
+    init { isClickable = false; isFocusable = false; importantForAccessibility = IMPORTANT_FOR_ACCESSIBILITY_NO; setWillNotDraw(false) }
+    override fun onAttachedToWindow() { super.onAttachedToWindow(); removeCallbacks(frame); post(frame) }
+    override fun onDetachedFromWindow() { removeCallbacks(frame); super.onDetachedFromWindow() }
+
+    private fun line(c: Canvas, color: Int, sw: Float, x1: Float, y1: Float, x2: Float, y2: Float) {
+        p.color = color; p.style = Paint.Style.STROKE; p.strokeWidth = sw*d
+        c.drawLine(x1*d,y1*d,x2*d,y2*d,p); p.style = Paint.Style.FILL
+    }
+    override fun onDraw(canvas: Canvas) {
+        super.onDraw(canvas)
+        if (width <= 0 || height <= 0) return
+        val pts = arrayOf(0.07f to 0.30f,0.93f to 0.30f,0.93f to 0.47f,0.07f to 0.47f,
+            0.07f to 0.68f,0.93f to 0.68f,0.93f to 0.87f,0.07f to 0.87f)
+        val dur = longArrayOf(7200L,1900L,7200L,1900L,7200L,1900L,7200L,2200L)
+        val cycle=dur.sum(); val elapsed=(android.os.SystemClock.uptimeMillis()-started)%cycle
+        var rem=elapsed; var seg=0
+        while(seg<dur.lastIndex && rem>=dur[seg]) { rem-=dur[seg]; seg++ }
+        val a=pts[seg]; val b=if(seg==pts.lastIndex)pts[0] else pts[seg+1]
+        val t=(rem.toFloat()/dur[seg]).coerceIn(0f,1f); val e=t*t*(3f-2f*t)
+        val x:Float; val y:Float; val faceLeft:Boolean
+        if(seg%2==0) {
+            x=width*(a.first+(b.first-a.first)*e); y=height*(a.second+(b.second-a.second)*e)
+            faceLeft=b.first<a.first
+        } else {
+            val cx=width*(if(a.first>0.5f)0.885f else 0.115f); val cy=height*((a.second+b.second)/2f); val q=1f-t
+            x=q*q*width*a.first+2f*q*t*cx+t*t*width*b.first
+            y=q*q*height*a.second+2f*q*t*cy+t*t*height*b.second
+            // Setelah belokan, ayam menghadap arah lintasan baris berikutnya.
+            faceLeft=a.first<0.5f
+        }
+        val phase=elapsed/115f
+        val step=kotlin.math.sin(phase).toFloat()
+        val bob=kotlin.math.abs(kotlin.math.sin(phase*2f)).toFloat()*0.65f*d
+        canvas.save(); canvas.translate(x,y+bob); if(faceLeft) canvas.scale(-1f,1f)
+        val white=Color.rgb(244,239,222); val shade=Color.rgb(207,197,174)
+        val red=Color.rgb(198,35,43); val dark=Color.rgb(65,43,34); val orange=Color.rgb(235,139,35)
+        // Bayangan
+        p.color=Color.argb(42,0,0,0); canvas.drawOval(RectF(-13f*d,7f*d,14f*d,10f*d),p)
+        // Kaki bergerak bergantian dengan telapak dan jari.
+        for(i in 0..1) {
+            val ph=phase+(if(i==0)0f else Math.PI.toFloat())
+            val swing=kotlin.math.sin(ph).toFloat()
+            val lift=kotlin.math.max(0f,kotlin.math.cos(ph)).toFloat()*1.8f
+            val lx=if(i==0)-2.5f else 3.2f
+            line(canvas,orange,1.45f,lx,4.2f,lx+swing*2.2f,7f-lift)
+            line(canvas,orange,1.15f,lx+swing*2.2f,7f-lift,lx+swing*2.2f+2.3f,7.1f-lift)
+            line(canvas,orange,1.0f,lx+swing*2.2f,7f-lift,lx+swing*2.2f-1.8f,7.2f-lift)
+        }
+        // Badan dan sayap tampak samping.
+        p.color=white; canvas.drawOval(RectF(-11f*d,-5.2f*d,8f*d,5.4f*d),p)
+        p.color=shade; canvas.drawOval(RectF(-7f*d,-2.8f*d,4.5f*d,4.5f*d),p)
+        p.color=white
+        val wing=Path().apply { moveTo(-5f*d,-1f*d); quadTo(-2f*d,-7f*d,4f*d,-3f*d); quadTo(2f*d,1f*d,-3f*d,2f*d); close() }
+        canvas.drawPath(wing,p)
+        p.color=shade; p.style=Paint.Style.STROKE; p.strokeWidth=0.65f*d; canvas.drawPath(wing,p); p.style=Paint.Style.FILL
+        // Ekor bulu.
+        p.color=white
+        val tail=Path().apply { moveTo(-9f*d,-1f*d); lineTo(-15f*d,-5f*d); lineTo(-13f*d,0f); lineTo(-16f*d,3f*d); lineTo(-8f*d,3f*d); close() }
+        canvas.drawPath(tail,p)
+        // Leher, kepala, jengger dan pial.
+        p.color=white; canvas.drawRoundRect(RectF(4f*d,-7f*d,9f*d,2f*d),2f*d,2f*d,p)
+        canvas.drawCircle(8f*d,-7f*d,4.2f*d,p)
+        p.color=red
+        val comb=Path().apply { moveTo(5f*d,-10f*d); lineTo(4f*d,-13f*d); lineTo(7f*d,-11f*d); lineTo(8f*d,-14f*d); lineTo(10f*d,-10.5f*d); lineTo(11f*d,-12f*d); lineTo(12f*d,-8.5f*d); close() }
+        canvas.drawPath(comb,p); canvas.drawOval(RectF(7f*d,-3.2f*d,10f*d,0.5f*d),p)
+        // Paruh dan mata.
+        p.color=orange
+        val beak=Path().apply { moveTo(11.5f*d,-7.5f*d); lineTo(17f*d,-5.8f*d); lineTo(11.5f*d,-4.7f*d); close() }
+        canvas.drawPath(beak,p)
+        p.color=Color.rgb(25,25,25); canvas.drawCircle(9.5f*d,-8f*d,0.75f*d,p)
+        p.color=Color.WHITE; canvas.drawCircle(9.7f*d,-8.2f*d,0.22f*d,p)
         canvas.restore()
     }
 }
