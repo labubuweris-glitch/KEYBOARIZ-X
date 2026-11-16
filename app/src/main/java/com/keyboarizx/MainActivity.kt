@@ -194,8 +194,8 @@ class MainActivity : Activity() {
             textSize = 13f
             setTextColor(Color.LTGRAY)
         })
-        val characterNames = listOf("Semut", "Capung (tampak atas)")
-        val characterValues = listOf("ANT", "DRAGONFLY")
+        val characterNames = listOf("Semut", "Capung (tampak atas)", "Mustang (tampak atas)")
+        val characterValues = listOf("ANT", "DRAGONFLY", "MUSTANG")
         val characterSpinner = Spinner(this).apply {
             adapter = ArrayAdapter(this@MainActivity, android.R.layout.simple_spinner_dropdown_item, characterNames)
             setSelection(characterValues.indexOf(prefs.getString("keyboard_character", "ANT")).coerceAtLeast(0))
