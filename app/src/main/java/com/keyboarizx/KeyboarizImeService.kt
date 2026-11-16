@@ -1250,7 +1250,7 @@ class KeyboarizImeService : InputMethodService() {
 private fun characterAnimationSpeed(context: Context): Float {
     return when (context.getSharedPreferences("keyboard_settings", Context.MODE_PRIVATE)
         .getString("keyboard_animation_speed", "NORMAL")) {
-        "SLOW" -> 0.60f
+        "SLOW" -> 0.35f
         "FAST" -> 1.55f
         else -> 1.0f
     }
@@ -1360,7 +1360,6 @@ private fun calculateCharacterMotion(width: Int, height: Int, elapsed: Long, rou
 
 private class AntOverlayView(context: Context, private val routeMode: String) : View(context) {
     private val density = resources.displayMetrics.density
-    private val animationSpeed = characterAnimationSpeed(context)
     private val bodyPaint = Paint(Paint.ANTI_ALIAS_FLAG)
     private val legPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         style = Paint.Style.STROKE
@@ -1403,7 +1402,7 @@ private class AntOverlayView(context: Context, private val routeMode: String) : 
         super.onDraw(canvas)
         if (width <= 0 || height <= 0) return
 
-        val elapsed = ((android.os.SystemClock.uptimeMillis() - startedAt) * animationSpeed).toLong()
+        val elapsed = ((android.os.SystemClock.uptimeMillis() - startedAt) * characterAnimationSpeed(context)).toLong()
         val motion = calculateCharacterMotion(width, height, elapsed, routeMode)
         val x = motion.x
         val pathY = motion.y
@@ -1482,7 +1481,6 @@ private class AntOverlayView(context: Context, private val routeMode: String) : 
 /** Capung tampak dari atas, mengikuti lintasan zig-zag semut dengan kecepatan sama. */
 private class DragonflyOverlayView(context: Context, private val routeMode: String) : View(context) {
     private val d = resources.displayMetrics.density
-    private val animationSpeed = characterAnimationSpeed(context)
     private val fill = Paint(Paint.ANTI_ALIAS_FLAG)
     private val stroke = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.STROKE; strokeCap = Paint.Cap.ROUND }
     private val start = android.os.SystemClock.uptimeMillis()
@@ -1492,7 +1490,7 @@ private class DragonflyOverlayView(context: Context, private val routeMode: Stri
     override fun onDetachedFromWindow() { removeCallbacks(frame); super.onDetachedFromWindow() }
     override fun onDraw(canvas: Canvas) {
         super.onDraw(canvas); if (width <= 0 || height <= 0) return
-        val elapsed = ((android.os.SystemClock.uptimeMillis() - start) * animationSpeed).toLong()
+        val elapsed = ((android.os.SystemClock.uptimeMillis() - start) * characterAnimationSpeed(context)).toLong()
         val motion = calculateCharacterMotion(width, height, elapsed, routeMode)
         val x = motion.x
         val y = motion.y
@@ -1540,7 +1538,6 @@ private class DragonflyOverlayView(context: Context, private val routeMode: Stri
 /** Mustang merah tampak atas, melaju di lintasan zig-zag yang sama dengan semut. */
 private class MustangOverlayView(context: Context, private val routeMode: String) : View(context) {
     private val d = resources.displayMetrics.density
-    private val animationSpeed = characterAnimationSpeed(context)
     private val paint = Paint(Paint.ANTI_ALIAS_FLAG)
     private val outline = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         style = Paint.Style.STROKE
@@ -1577,7 +1574,7 @@ private class MustangOverlayView(context: Context, private val routeMode: String
         super.onDraw(canvas)
         if (width <= 0 || height <= 0) return
 
-        val elapsed = ((android.os.SystemClock.uptimeMillis() - start) * animationSpeed).toLong()ed
+        val elapsed = ((android.os.SystemClock.uptimeMillis() - start) * characterAnimationSpeed(context)).toLong()ed
         val motion = calculateCharacterMotion(width, height, elapsed, routeMode)
         val x = motion.x
         val y = motion.y
@@ -1658,7 +1655,6 @@ private class MustangOverlayView(context: Context, private val routeMode: String
 /** Side-view sport motorcycle with a helmeted rider, following the keyboard zig-zag route. */
 private class MotorcycleOverlayView(context: Context, private val routeMode: String) : View(context) {
     private val d = resources.displayMetrics.density
-    private val animationSpeed = characterAnimationSpeed(context)
     private val p = Paint(Paint.ANTI_ALIAS_FLAG).apply { strokeCap = Paint.Cap.ROUND; strokeJoin = Paint.Join.ROUND }
     private val started = android.os.SystemClock.uptimeMillis()
     private val frame = object : Runnable {
@@ -1694,7 +1690,7 @@ private class MotorcycleOverlayView(context: Context, private val routeMode: Str
     override fun onDraw(canvas: Canvas) {
         super.onDraw(canvas)
         if (width <= 0 || height <= 0) return
-        val elapsed = ((android.os.SystemClock.uptimeMillis() - start) * animationSpeed).toLong()ed
+        val elapsed = ((android.os.SystemClock.uptimeMillis() - start) * characterAnimationSpeed(context)).toLong()ed
         val motion = calculateCharacterMotion(width, height, elapsed, routeMode, 7200L)
         val x = motion.x
         val y = motion.y
@@ -1808,7 +1804,6 @@ private class MotorcycleOverlayView(context: Context, private val routeMode: Str
 /** Ayam berjalan tampak samping dengan gerakan kaki bergantian di jalur zig-zag keyboard. */
 private class ChickenOverlayView(context: Context, private val routeMode: String) : View(context) {
     private val d = resources.displayMetrics.density
-    private val animationSpeed = characterAnimationSpeed(context)
     private val p = Paint(Paint.ANTI_ALIAS_FLAG).apply { strokeCap = Paint.Cap.ROUND; strokeJoin = Paint.Join.ROUND }
     private val started = android.os.SystemClock.uptimeMillis()
     private val frame = object : Runnable {
@@ -1825,7 +1820,7 @@ private class ChickenOverlayView(context: Context, private val routeMode: String
     override fun onDraw(canvas: Canvas) {
         super.onDraw(canvas)
         if (width <= 0 || height <= 0) return
-        val elapsed = ((android.os.SystemClock.uptimeMillis() - start) * animationSpeed).toLong()ed
+        val elapsed = ((android.os.SystemClock.uptimeMillis() - start) * characterAnimationSpeed(context)).toLong()ed
         val motion = calculateCharacterMotion(width, height, elapsed, routeMode)
         val x = motion.x
         val y = motion.y
