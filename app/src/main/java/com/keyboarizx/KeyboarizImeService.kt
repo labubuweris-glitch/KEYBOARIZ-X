@@ -557,6 +557,36 @@ class KeyboarizImeService : InputMethodService() {
                                 else -> true
                             }
                         }
+                    } else if (numberMode && symbolPage == 3 && label == "0") {
+                        // Number Pad: ketuk untuk 0, tekan lama untuk 000.
+                        var zeroPointerDown = false
+                        var zeroLongPressed = false
+                        val markLongZero = Runnable {
+                            if (zeroPointerDown) zeroLongPressed = true
+                        }
+                        setOnTouchListener { _, event ->
+                            when (event.actionMasked) {
+                                MotionEvent.ACTION_DOWN -> {
+                                    zeroPointerDown = true
+                                    zeroLongPressed = false
+                                    handler.removeCallbacks(markLongZero)
+                                    handler.postDelayed(markLongZero, 350L)
+                                    true
+                                }
+                                MotionEvent.ACTION_UP -> {
+                                    zeroPointerDown = false
+                                    handler.removeCallbacks(markLongZero)
+                                    currentInputConnection?.commitText(if (zeroLongPressed) "000" else "0", 1)
+                                    true
+                                }
+                                MotionEvent.ACTION_CANCEL -> {
+                                    zeroPointerDown = false
+                                    handler.removeCallbacks(markLongZero)
+                                    true
+                                }
+                                else -> true
+                            }
+                        }
                     } else if (!numberMode && alternateCharacters.containsKey(label)) {
                         // Huruf beraksen: ketuk untuk huruf biasa, tahan untuk membuka pilihan.
                         var pointerDown = false
@@ -618,7 +648,31 @@ class KeyboarizImeService : InputMethodService() {
                 // Hilangkan celah mati pada area sentuh: batas tombol saling berdempetan,
                 // sementara inset drawable tetap menjaga jarak visual antar bentuk tombol.
                 params.setMargins(0, dp(2), 0, dp(2))
-                if (!numberMode && alternateCharacters.containsKey(label)) {
+                if (numberMode && symbolPage == 3 && label == "0") {
+                    // Penanda kecil "000" di sudut tombol 0 sebagai petunjuk tekan lama.
+                    val keyContainer = FrameLayout(this)
+                    keyContainer.addView(button, FrameLayout.LayoutParams(
+                        FrameLayout.LayoutParams.MATCH_PARENT,
+                        FrameLayout.LayoutParams.MATCH_PARENT
+                    ))
+                    val indicator = TextView(this).apply {
+                        text = "000"
+                        textSize = 8f
+                        typeface = Typeface.DEFAULT_BOLD
+                        setTextColor(textColor)
+                        gravity = Gravity.CENTER
+                        isClickable = false
+                        isFocusable = false
+                        elevation = dp(8).toFloat()
+                    }
+                    keyContainer.addView(indicator, FrameLayout.LayoutParams(
+                        dp(23), dp(13), Gravity.TOP or Gravity.END
+                    ).apply {
+                        topMargin = dp(3)
+                        rightMargin = dp(4)
+                    })
+                    row.addView(keyContainer, params)
+                } else if (!numberMode && alternateCharacters.containsKey(label)) {
                     // Titik kecil menandai tombol yang memiliki karakter alternatif saat ditekan lama.
                     val keyContainer = FrameLayout(this)
                     keyContainer.addView(button, FrameLayout.LayoutParams(
