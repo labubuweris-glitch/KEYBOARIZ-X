@@ -562,7 +562,10 @@ class KeyboarizImeService : InputMethodService() {
                         var zeroPointerDown = false
                         var zeroLongPressed = false
                         val markLongZero = Runnable {
-                            if (zeroPointerDown) zeroLongPressed = true
+                            if (zeroPointerDown && !zeroLongPressed) {
+                                zeroLongPressed = true
+                                currentInputConnection?.commitText("000", 1)
+                            }
                         }
                         setOnTouchListener { _, event ->
                             when (event.actionMasked) {
@@ -576,7 +579,9 @@ class KeyboarizImeService : InputMethodService() {
                                 MotionEvent.ACTION_UP -> {
                                     zeroPointerDown = false
                                     handler.removeCallbacks(markLongZero)
-                                    currentInputConnection?.commitText(if (zeroLongPressed) "000" else "0", 1)
+                                    if (!zeroLongPressed) {
+                                        currentInputConnection?.commitText("0", 1)
+                                    }
                                     true
                                 }
                                 MotionEvent.ACTION_CANCEL -> {
