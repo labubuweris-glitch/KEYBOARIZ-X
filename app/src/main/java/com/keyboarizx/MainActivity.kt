@@ -277,6 +277,27 @@ class MainActivity : Activity() {
             }
         }
 
+        section(root, "JALUR ANIMASI")
+        root.addView(TextView(this).apply {
+            text = "Pilih pola gerakan karakter di seluruh area keyboard."
+            textSize = 13f
+            setTextColor(Color.LTGRAY)
+        })
+        val routeNames = listOf("Lurus", "Zig-zag", "Gelombang", "Melingkar", "Ular (tembus dinding)")
+        val routeValues = listOf("STRAIGHT", "ZIGZAG", "WAVE", "CIRCLE", "SNAKE")
+        val routeSpinner = Spinner(this).apply {
+            adapter = ArrayAdapter(this@MainActivity, android.R.layout.simple_spinner_dropdown_item, routeNames)
+            setSelection(routeValues.indexOf(prefs.getString("keyboard_animation_route", "ZIGZAG")).coerceAtLeast(0))
+        }
+        root.addView(routeSpinner, LinearLayout.LayoutParams(-1, dp(52)))
+        routeSpinner.onItemSelectedListener = object : android.widget.AdapterView.OnItemSelectedListener {
+            override fun onNothingSelected(parent: android.widget.AdapterView<*>?) {}
+            override fun onItemSelected(parent: android.widget.AdapterView<*>?, view: android.view.View?, position: Int, id: Long) {
+                prefs.edit().putString("keyboard_animation_route", routeValues[position]).apply()
+                Toast.makeText(this@MainActivity, "Jalur animasi disimpan. Buka ulang keyboard untuk menerapkan.", Toast.LENGTH_SHORT).show()
+            }
+        }
+
         section(root, "RIZBOARD")
         root.addView(TextView(this).apply {
             text = "Kelola tombol custom yang muncul bersama tombol bawaan di halaman RIZBOARD."
