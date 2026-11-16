@@ -1164,14 +1164,14 @@ private class AntOverlayView(context: Context) : View(context) {
         super.onDraw(canvas)
         if (width <= 0 || height <= 0) return
 
-        // Jalur zig-zag mengikuti empat baris tombol seperti garis oranye.
+        // Gerak lambat dengan belokan melengkung, bukan sudut patah.
         val points = arrayOf(
             0.07f to 0.30f, 0.93f to 0.30f,
             0.93f to 0.47f, 0.07f to 0.47f,
             0.07f to 0.68f, 0.93f to 0.68f,
             0.93f to 0.87f, 0.07f to 0.87f
         )
-        val durations = longArrayOf(2500L, 520L, 2500L, 520L, 2500L, 520L, 2500L, 650L)
+        val durations = longArrayOf(6200L, 1900L, 6200L, 1900L, 6200L, 1900L, 6200L, 2200L)
         val cycle = durations.sum()
         val elapsed = (android.os.SystemClock.uptimeMillis() - startedAt) % cycle
         var remaining = elapsed
@@ -1184,9 +1184,30 @@ private class AntOverlayView(context: Context) : View(context) {
         val to = if (segment == points.lastIndex) points[0] else points[segment + 1]
         val progress = (remaining.toFloat() / durations[segment]).coerceIn(0f, 1f)
         val eased = progress * progress * (3f - 2f * progress)
-        val x = width * (from.first + (to.first - from.first) * eased)
-        val pathY = height * (from.second + (to.second - from.second) * eased)
-        val facing = if (to.first >= from.first) 1f else -1f
+        val x: Float
+        val pathY: Float
+        val heading: Float
+        if (segment % 2 == 0) {
+            x = width * (from.first + (to.first - from.first) * eased)
+            pathY = height * (from.second + (to.second - from.second) * eased)
+            heading = if (to.first >= from.first) 0f else 180f
+        } else {
+            val edgeInset = width * 0.045f
+            val controlX = width * (if (from.first > 0.5f) 0.93f - 0.045f else 0.07f + 0.045f)
+            val controlY = height * ((from.second + to.second) / 2f)
+            val oneMinus = 1f - progress
+            x = oneMinus * oneMinus * width * from.first +
+                2f * oneMinus * progress * controlX +
+                progress * progress * width * to.first
+            pathY = oneMinus * oneMinus * height * from.second +
+                2f * oneMinus * progress * controlY +
+                progress * progress * height * to.second
+            val dx = 2f * oneMinus * (controlX - width * from.first) +
+                2f * progress * (width * to.first - controlX)
+            val dy = 2f * oneMinus * (controlY - height * from.second) +
+                2f * progress * (height * to.second - controlY)
+            heading = Math.toDegrees(kotlin.math.atan2(dy.toDouble(), dx.toDouble())).toFloat()
+        }
         val walking = 1f
 
         val antW = 29f * density
@@ -1198,8 +1219,7 @@ private class AntOverlayView(context: Context) : View(context) {
 
         canvas.save()
         canvas.translate(x, y)
-        if (facing < 0f) canvas.scale(-1f, 1f)
-        canvas.rotate(step * 1.1f)
+        canvas.rotate(heading + step * 0.7f)
 
         legPaint.color = Color.rgb(47, 29, 24)
         legPaint.strokeWidth = 1.35f * density
