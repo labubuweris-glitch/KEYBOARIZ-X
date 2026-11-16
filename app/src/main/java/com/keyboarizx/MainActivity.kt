@@ -188,6 +188,27 @@ class MainActivity : Activity() {
         }
 
 
+        section(root, "KARAKTER ANIMASI")
+        root.addView(TextView(this).apply {
+            text = "Pilih karakter yang bergerak di atas tombol keyboard."
+            textSize = 13f
+            setTextColor(Color.LTGRAY)
+        })
+        val characterNames = listOf("Semut", "Capung (tampak atas)")
+        val characterValues = listOf("ANT", "DRAGONFLY")
+        val characterSpinner = Spinner(this).apply {
+            adapter = ArrayAdapter(this@MainActivity, android.R.layout.simple_spinner_dropdown_item, characterNames)
+            setSelection(characterValues.indexOf(prefs.getString("keyboard_character", "ANT")).coerceAtLeast(0))
+        }
+        root.addView(characterSpinner, LinearLayout.LayoutParams(-1, dp(52)))
+        characterSpinner.onItemSelectedListener = object : android.widget.AdapterView.OnItemSelectedListener {
+            override fun onNothingSelected(parent: android.widget.AdapterView<*>?) {}
+            override fun onItemSelected(parent: android.widget.AdapterView<*>?, view: android.view.View?, position: Int, id: Long) {
+                prefs.edit().putString("keyboard_character", characterValues[position]).apply()
+                Toast.makeText(this@MainActivity, "Pilihan karakter disimpan. Buka ulang keyboard untuk menerapkan.", Toast.LENGTH_SHORT).show()
+            }
+        }
+
         section(root, "RIZBOARD")
         root.addView(TextView(this).apply {
             text = "Kelola tombol custom yang muncul bersama tombol bawaan di halaman RIZBOARD."
