@@ -683,9 +683,26 @@ class KeyboarizImeService : InputMethodService() {
             addRow(listOf("?123", ",", "SPACE", ".", "↵"),
                 listOf(1.4f,0.8f,3.8f,0.8f,1.4f))
         }
-        // Karakter semut digambar sebagai overlay transparan; ukuran keyboard tidak berubah.
-        if (!numberMode) withAntOverlay(root)
+        // Tampilkan karakter pilihan pada overlay transparan tanpa mengubah ukuran keyboard.
+        if (!numberMode) {
+            if (prefs.getString("keyboard_character", "ANT") == "DRAGONFLY") withDragonflyOverlay(root)
+            else withAntOverlay(root)
+        }
         return root
+    }
+
+    private fun withDragonflyOverlay(keyboard: View) {
+        val group = keyboard as? ViewGroup ?: return
+        val view = DragonflyOverlayView(this)
+        group.overlay.add(view)
+        fun fit() {
+            val w = group.width; val h = group.height
+            if (w <= 0 || h <= 0) return
+            view.measure(View.MeasureSpec.makeMeasureSpec(w, View.MeasureSpec.EXACTLY), View.MeasureSpec.makeMeasureSpec(h, View.MeasureSpec.EXACTLY))
+            view.layout(0, 0, w, h)
+        }
+        group.addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ -> fit() }
+        group.post { fit() }
     }
 
     private fun withAntOverlay(keyboard: View) {
@@ -1276,6 +1293,50 @@ private class AntOverlayView(context: Context) : View(context) {
  * Draws keyboard key shapes while keeping the actual Android Button view as the touch target.
  * For staggered styles the whole row (and therefore its touch targets) is shifted together.
  */
+/** Capung tampak dari atas, mengikuti lintasan zig-zag semut dengan kecepatan sama. */
+private class DragonflyOverlayView(context: Context) : View(context) {
+    private val d = resources.displayMetrics.density
+    private val fill = Paint(Paint.ANTI_ALIAS_FLAG)
+    private val stroke = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.STROKE; strokeCap = Paint.Cap.ROUND }
+    private val start = android.os.SystemClock.uptimeMillis()
+    private val frame = object : Runnable { override fun run() { if (!isAttachedToWindow) return; invalidate(); postDelayed(this, 34L) } }
+    init { isClickable = false; isFocusable = false; importantForAccessibility = IMPORTANT_FOR_ACCESSIBILITY_NO; setWillNotDraw(false) }
+    override fun onAttachedToWindow() { super.onAttachedToWindow(); removeCallbacks(frame); post(frame) }
+    override fun onDetachedFromWindow() { removeCallbacks(frame); super.onDetachedFromWindow() }
+    override fun onDraw(canvas: Canvas) {
+        super.onDraw(canvas); if (width <= 0 || height <= 0) return
+        val p = arrayOf(0.07f to 0.30f, 0.93f to 0.30f, 0.93f to 0.47f, 0.07f to 0.47f, 0.07f to 0.68f, 0.93f to 0.68f, 0.93f to 0.87f, 0.07f to 0.87f)
+        val dur = longArrayOf(6200L,1900L,6200L,1900L,6200L,1900L,6200L,2200L); val cycle=dur.sum()
+        val elapsed=(android.os.SystemClock.uptimeMillis()-start)%cycle; var rem=elapsed; var seg=0
+        while(seg<dur.lastIndex && rem>=dur[seg]) { rem-=dur[seg]; seg++ }
+        val a=p[seg]; val b=if(seg==p.lastIndex)p[0] else p[seg+1]; val t=(rem.toFloat()/dur[seg]).coerceIn(0f,1f); val e=t*t*(3f-2f*t)
+        val x:Float; val y:Float; val angle:Float
+        if(seg%2==0) { x=width*(a.first+(b.first-a.first)*e); y=height*(a.second+(b.second-a.second)*e); angle=if(b.first>=a.first)0f else 180f }
+        else { val cx=width*(if(a.first>0.5f)0.885f else 0.115f); val cy=height*((a.second+b.second)/2f); val q=1f-t
+            x=q*q*width*a.first+2f*q*t*cx+t*t*width*b.first; y=q*q*height*a.second+2f*q*t*cy+t*t*height*b.second
+            val dx=2f*q*(cx-width*a.first)+2f*t*(width*b.first-cx); val dy=2f*q*(cy-height*a.second)+2f*t*(height*b.second-cy); angle=Math.toDegrees(kotlin.math.atan2(dy.toDouble(),dx.toDouble())).toFloat() }
+        val flap=kotlin.math.sin(elapsed/95f*2f).toFloat()*2.2f*d
+        canvas.save(); canvas.translate(x,y); canvas.rotate(angle)
+        // Top view: four translucent wings spread laterally, head at the leading end (+X).
+        fill.color=Color.argb(115,135,220,245)
+        val fore=Path().apply { moveTo(-1f*d,-1f*d); quadTo(-9f*d,-15f*d-flap,-22f*d,-17f*d-flap); quadTo(-17f*d,-5f*d,-1f*d,1f*d); close() }
+        canvas.drawPath(fore,fill); canvas.save(); canvas.scale(1f,-1f); canvas.drawPath(fore,fill); canvas.restore()
+        val hind=Path().apply { moveTo(-2f*d,0f); quadTo(-11f*d,10f*d+flap,-23f*d,13f*d+flap); quadTo(-18f*d,3f*d,-2f*d,-1f*d); close() }
+        canvas.drawPath(hind,fill); canvas.save(); canvas.scale(1f,-1f); canvas.drawPath(hind,fill); canvas.restore()
+        stroke.color=Color.argb(175,55,115,145); stroke.strokeWidth=0.65f*d
+        canvas.drawLine(-2f*d,-1f*d,-19f*d,-15f*d-flap,stroke); canvas.drawLine(-2f*d,1f*d,-19f*d,15f*d+flap,stroke)
+        stroke.color=Color.rgb(35,63,73); stroke.strokeWidth=1f*d
+        for(i in 0..2) { val ax=(i*2-2)*2.2f*d; val swing=kotlin.math.sin(elapsed/95f+i*1.8f).toFloat()*1.2f*d; canvas.drawLine(ax,1f*d,ax-4f*d+swing,5f*d,stroke); canvas.drawLine(ax,1f*d,ax+4f*d-swing,5f*d,stroke) }
+        fill.color=Color.rgb(37,105,119); canvas.drawRoundRect(android.graphics.RectF(-19f*d,-2.2f*d,3f*d,2.2f*d),2f*d,2f*d,fill)
+        stroke.color=Color.rgb(150,208,207); stroke.strokeWidth=0.7f*d
+        for(i in 1..4) canvas.drawLine((-17f+i*4f)*d,-1.8f*d,(-17f+i*4f)*d,1.8f*d,stroke)
+        fill.color=Color.rgb(46,125,138); canvas.drawOval(android.graphics.RectF(-3f*d,-4f*d,6f*d,4f*d),fill)
+        fill.color=Color.rgb(28,65,79); canvas.drawCircle(7f*d,0f,4.2f*d,fill)
+        fill.color=Color.WHITE; canvas.drawCircle(8.5f*d,-1.4f*d,0.8f*d,fill)
+        canvas.restore()
+    }
+}
+
 private class KeyShapeDrawable(
     private val fillColor: Int,
     private val shape: String,
