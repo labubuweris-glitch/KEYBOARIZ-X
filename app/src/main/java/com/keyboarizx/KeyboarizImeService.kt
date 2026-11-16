@@ -685,12 +685,14 @@ class KeyboarizImeService : InputMethodService() {
         }
         // Tampilkan karakter pilihan pada overlay transparan tanpa mengubah ukuran keyboard.
         if (!numberMode) {
-            when (prefs.getString("keyboard_character", "ANT")) {
+            when (prefs.getString("keyboard_character", "NONE")) {
+                "ANT" -> withAntOverlay(root)
                 "DRAGONFLY" -> withDragonflyOverlay(root)
                 "MUSTANG" -> withMustangOverlay(root)
                 "MOTORCYCLE" -> withMotorcycleOverlay(root)
                 "CHICKEN" -> withChickenOverlay(root)
-                else -> withAntOverlay(root)
+                "NONE" -> Unit
+                else -> Unit
             }
         }
         return root
