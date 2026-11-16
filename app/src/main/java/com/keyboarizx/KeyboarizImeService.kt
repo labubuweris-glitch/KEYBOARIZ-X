@@ -1164,49 +1164,37 @@ private class AntOverlayView(context: Context) : View(context) {
         super.onDraw(canvas)
         if (width <= 0 || height <= 0) return
 
-        val elapsed = (android.os.SystemClock.uptimeMillis() - startedAt) % 13200L
-        fun smooth(value: Float): Float {
-            val p = value.coerceIn(0f, 1f)
-            return p * p * (3f - 2f * p)
+        // Jalur zig-zag mengikuti empat baris tombol seperti garis oranye.
+        val points = arrayOf(
+            0.07f to 0.30f, 0.93f to 0.30f,
+            0.93f to 0.47f, 0.07f to 0.47f,
+            0.07f to 0.68f, 0.93f to 0.68f,
+            0.93f to 0.87f, 0.07f to 0.87f
+        )
+        val durations = longArrayOf(2500L, 520L, 2500L, 520L, 2500L, 520L, 2500L, 650L)
+        val cycle = durations.sum()
+        val elapsed = (android.os.SystemClock.uptimeMillis() - startedAt) % cycle
+        var remaining = elapsed
+        var segment = 0
+        while (segment < durations.lastIndex && remaining >= durations[segment]) {
+            remaining -= durations[segment]
+            segment++
         }
-
-        val x: Float
-        val facing: Float
-        val walking: Float
-        when {
-            elapsed < 2600L -> {
-                x = width * (0.12f + 0.25f * smooth(elapsed / 2600f))
-                facing = 1f
-                walking = 1f
-            }
-            elapsed < 4100L -> {
-                x = width * 0.37f
-                facing = 1f
-                walking = 0.12f
-            }
-            elapsed < 7000L -> {
-                x = width * (0.37f + 0.47f * smooth((elapsed - 4100L) / 2900f))
-                facing = 1f
-                walking = 1f
-            }
-            elapsed < 8500L -> {
-                x = width * 0.84f
-                facing = 1f
-                walking = 0.10f
-            }
-            else -> {
-                x = width * (0.84f - 0.72f * smooth((elapsed - 8500L) / 4700f))
-                facing = -1f
-                walking = 1f
-            }
-        }
+        val from = points[segment]
+        val to = if (segment == points.lastIndex) points[0] else points[segment + 1]
+        val progress = (remaining.toFloat() / durations[segment]).coerceIn(0f, 1f)
+        val eased = progress * progress * (3f - 2f * progress)
+        val x = width * (from.first + (to.first - from.first) * eased)
+        val pathY = height * (from.second + (to.second - from.second) * eased)
+        val facing = if (to.first >= from.first) 1f else -1f
+        val walking = 1f
 
         val antW = 29f * density
         val antH = 19f * density
         val phase = elapsed / 82f
         val step = kotlin.math.sin(phase).toFloat() * walking
         val bob = kotlin.math.abs(kotlin.math.sin(phase * 2f)).toFloat() * 0.8f * density * walking
-        val y = height * 0.56f + bob
+        val y = pathY + bob
 
         canvas.save()
         canvas.translate(x, y)
