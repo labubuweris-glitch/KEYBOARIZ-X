@@ -688,6 +688,7 @@ class KeyboarizImeService : InputMethodService() {
             when (prefs.getString("keyboard_character", "ANT")) {
                 "DRAGONFLY" -> withDragonflyOverlay(root)
                 "MUSTANG" -> withMustangOverlay(root)
+                "MOTORCYCLE" -> withMotorcycleOverlay(root)
                 else -> withAntOverlay(root)
             }
         }
@@ -717,6 +718,20 @@ class KeyboarizImeService : InputMethodService() {
             if (w <= 0 || h <= 0) return
             car.measure(View.MeasureSpec.makeMeasureSpec(w, View.MeasureSpec.EXACTLY), View.MeasureSpec.makeMeasureSpec(h, View.MeasureSpec.EXACTLY))
             car.layout(0, 0, w, h)
+        }
+        group.addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ -> fit() }
+        group.post { fit() }
+    }
+
+    private fun withMotorcycleOverlay(keyboard: View) {
+        val group = keyboard as? ViewGroup ?: return
+        val bike = MotorcycleOverlayView(this)
+        group.overlay.add(bike)
+        fun fit() {
+            val w = group.width; val h = group.height
+            if (w <= 0 || h <= 0) return
+            bike.measure(View.MeasureSpec.makeMeasureSpec(w, View.MeasureSpec.EXACTLY), View.MeasureSpec.makeMeasureSpec(h, View.MeasureSpec.EXACTLY))
+            bike.layout(0, 0, w, h)
         }
         group.addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ -> fit() }
         group.post { fit() }
