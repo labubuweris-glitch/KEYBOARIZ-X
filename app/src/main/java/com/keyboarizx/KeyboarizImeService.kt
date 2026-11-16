@@ -685,8 +685,11 @@ class KeyboarizImeService : InputMethodService() {
         }
         // Tampilkan karakter pilihan pada overlay transparan tanpa mengubah ukuran keyboard.
         if (!numberMode) {
-            if (prefs.getString("keyboard_character", "ANT") == "DRAGONFLY") withDragonflyOverlay(root)
-            else withAntOverlay(root)
+            when (prefs.getString("keyboard_character", "ANT")) {
+                "DRAGONFLY" -> withDragonflyOverlay(root)
+                "MUSTANG" -> withMustangOverlay(root)
+                else -> withAntOverlay(root)
+            }
         }
         return root
     }
@@ -700,6 +703,20 @@ class KeyboarizImeService : InputMethodService() {
             if (w <= 0 || h <= 0) return
             view.measure(View.MeasureSpec.makeMeasureSpec(w, View.MeasureSpec.EXACTLY), View.MeasureSpec.makeMeasureSpec(h, View.MeasureSpec.EXACTLY))
             view.layout(0, 0, w, h)
+        }
+        group.addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ -> fit() }
+        group.post { fit() }
+    }
+
+    private fun withMustangOverlay(keyboard: View) {
+        val group = keyboard as? ViewGroup ?: return
+        val car = MustangOverlayView(this)
+        group.overlay.add(car)
+        fun fit() {
+            val w = group.width; val h = group.height
+            if (w <= 0 || h <= 0) return
+            car.measure(View.MeasureSpec.makeMeasureSpec(w, View.MeasureSpec.EXACTLY), View.MeasureSpec.makeMeasureSpec(h, View.MeasureSpec.EXACTLY))
+            car.layout(0, 0, w, h)
         }
         group.addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ -> fit() }
         group.post { fit() }
@@ -1351,6 +1368,156 @@ private class DragonflyOverlayView(context: Context) : View(context) {
         fill.color=Color.rgb(205,245,245)
         canvas.drawCircle(7.9f*d,-3.0f*d,0.65f*d,fill)
         canvas.drawCircle(7.9f*d,2.0f*d,0.65f*d,fill)
+        canvas.restore()
+    }
+}
+
+/** Mustang merah tampak atas, melaju di lintasan zig-zag yang sama dengan semut. */
+private class MustangOverlayView(context: Context) : View(context) {
+    private val d = resources.displayMetrics.density
+    private val paint = Paint(Paint.ANTI_ALIAS_FLAG)
+    private val outline = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        style = Paint.Style.STROKE
+        strokeWidth = 0.8f * d
+    }
+    private val started = android.os.SystemClock.uptimeMillis()
+    private val frame = object : Runnable {
+        override fun run() {
+            if (!isAttachedToWindow) return
+            invalidate()
+            postDelayed(this, 34L)
+        }
+    }
+
+    init {
+        isClickable = false
+        isFocusable = false
+        importantForAccessibility = IMPORTANT_FOR_ACCESSIBILITY_NO
+        setWillNotDraw(false)
+    }
+
+    override fun onAttachedToWindow() {
+        super.onAttachedToWindow()
+        removeCallbacks(frame)
+        post(frame)
+    }
+
+    override fun onDetachedFromWindow() {
+        removeCallbacks(frame)
+        super.onDetachedFromWindow()
+    }
+
+    override fun onDraw(canvas: Canvas) {
+        super.onDraw(canvas)
+        if (width <= 0 || height <= 0) return
+
+        val points = arrayOf(
+            0.07f to 0.30f, 0.93f to 0.30f,
+            0.93f to 0.47f, 0.07f to 0.47f,
+            0.07f to 0.68f, 0.93f to 0.68f,
+            0.93f to 0.87f, 0.07f to 0.87f
+        )
+        val durations = longArrayOf(6200L, 1900L, 6200L, 1900L, 6200L, 1900L, 6200L, 2200L)
+        val cycle = durations.sum()
+        val elapsed = (android.os.SystemClock.uptimeMillis() - started) % cycle
+        var remaining = elapsed
+        var segment = 0
+        while (segment < durations.lastIndex && remaining >= durations[segment]) {
+            remaining -= durations[segment]
+            segment++
+        }
+
+        val a = points[segment]
+        val b = if (segment == points.lastIndex) points[0] else points[segment + 1]
+        val t = (remaining.toFloat() / durations[segment]).coerceIn(0f, 1f)
+        val eased = t * t * (3f - 2f * t)
+        val x: Float
+        val y: Float
+        val angle: Float
+
+        if (segment % 2 == 0) {
+            x = width * (a.first + (b.first - a.first) * eased)
+            y = height * (a.second + (b.second - a.second) * eased)
+            angle = if (b.first >= a.first) 0f else 180f
+        } else {
+            val controlX = width * if (a.first > 0.5f) 0.885f else 0.115f
+            val controlY = height * ((a.second + b.second) / 2f)
+            val q = 1f - t
+            x = q * q * width * a.first + 2f * q * t * controlX + t * t * width * b.first
+            y = q * q * height * a.second + 2f * q * t * controlY + t * t * height * b.second
+            val dx = 2f * q * (controlX - width * a.first) + 2f * t * (width * b.first - controlX)
+            val dy = 2f * q * (controlY - height * a.second) + 2f * t * (height * b.second - controlY)
+            angle = Math.toDegrees(kotlin.math.atan2(dy.toDouble(), dx.toDouble())).toFloat()
+        }
+
+        canvas.save()
+        canvas.translate(x, y)
+        canvas.rotate(angle)
+
+        // Bayangan halus di bawah mobil.
+        paint.color = Color.argb(65, 0, 0, 0)
+        canvas.drawRoundRect(RectF(-17f*d, -7.5f*d + 1.2f*d, 17f*d, 7.5f*d + 1.2f*d), 5f*d, 5f*d, paint)
+
+        // Empat ban; garis tapak bergerak untuk memberi kesan roda berputar.
+        val wheelSpin = (elapsed / 42f) % 360f
+        for (wx in listOf(-10.5f, 10.5f)) {
+            for (wy in listOf(-7.2f, 7.2f)) {
+                canvas.save()
+                canvas.translate(wx*d, wy*d)
+                paint.color = Color.rgb(18, 20, 23)
+                canvas.drawRoundRect(RectF(-3.7f*d, -1.8f*d, 3.7f*d, 1.8f*d), 0.8f*d, 0.8f*d, paint)
+                canvas.rotate(wheelSpin)
+                paint.color = Color.rgb(115, 119, 124)
+                canvas.drawLine(-2.5f*d, 0f, 2.5f*d, 0f, paint)
+                canvas.restore()
+            }
+        }
+
+        // Siluet bodi muscle car: moncong di depan (kanan), buritan di kiri.
+        val body = Path().apply {
+            moveTo(16.5f*d, 0f)
+            lineTo(14.2f*d, -4.7f*d)
+            quadTo(12.8f*d, -6.5f*d, 9f*d, -6.6f*d)
+            lineTo(-9.5f*d, -6.4f*d)
+            quadTo(-13.5f*d, -6.1f*d, -16f*d, -3.8f*d)
+            lineTo(-17f*d, -2.5f*d)
+            lineTo(-17f*d, 2.5f*d)
+            lineTo(-16f*d, 3.8f*d)
+            quadTo(-13.5f*d, 6.1f*d, -9.5f*d, 6.4f*d)
+            lineTo(9f*d, 6.6f*d)
+            quadTo(12.8f*d, 6.5f*d, 14.2f*d, 4.7f*d)
+            close()
+        }
+        paint.color = Color.rgb(190, 20, 31)
+        canvas.drawPath(body, paint)
+        outline.color = Color.rgb(90, 8, 15)
+        canvas.drawPath(body, outline)
+
+        // Kap mesin, garis balap hitam kembar, dan atap kaca.
+        paint.color = Color.rgb(225, 43, 48)
+        canvas.drawRoundRect(RectF(5f*d, -5.1f*d, 13.4f*d, 5.1f*d), 2f*d, 2f*d, paint)
+        paint.color = Color.rgb(24, 27, 31)
+        canvas.drawRect(RectF(6.8f*d, -4.7f*d, 8.1f*d, 4.7f*d), paint)
+        canvas.drawRect(RectF(10.1f*d, -4.7f*d, 11.4f*d, 4.7f*d), paint)
+
+        paint.color = Color.rgb(29, 48, 61)
+        canvas.drawRoundRect(RectF(-7.2f*d, -5.2f*d, 4.8f*d, 5.2f*d), 2.5f*d, 2.5f*d, paint)
+        outline.color = Color.rgb(155, 174, 184)
+        canvas.drawRoundRect(RectF(-7.2f*d, -5.2f*d, 4.8f*d, 5.2f*d), 2.5f*d, 2.5f*d, outline)
+        paint.color = Color.rgb(43, 62, 74)
+        canvas.drawRoundRect(RectF(-13.2f*d, -4.6f*d, -8.2f*d, 4.6f*d), 1.4f*d, 1.4f*d, paint)
+
+        // Lampu depan dan lampu belakang.
+        paint.color = Color.rgb(255, 242, 190)
+        canvas.drawRoundRect(RectF(14f*d, -4.1f*d, 16f*d, -1.5f*d), 0.8f*d, 0.8f*d, paint)
+        canvas.drawRoundRect(RectF(14f*d, 1.5f*d, 16f*d, 4.1f*d), 0.8f*d, 0.8f*d, paint)
+        paint.color = Color.rgb(255, 75, 65)
+        canvas.drawRect(RectF(-16.5f*d, -4.2f*d, -15.2f*d, -1.1f*d), paint)
+        canvas.drawRect(RectF(-16.5f*d, 1.1f*d, -15.2f*d, 4.2f*d), paint)
+
+        // Garis pemisah kap dan detail tengah.
+        outline.color = Color.argb(160, 65, 8, 14)
+        canvas.drawLine(5.2f*d, -5f*d, 5.2f*d, 5f*d, outline)
         canvas.restore()
     }
 }
