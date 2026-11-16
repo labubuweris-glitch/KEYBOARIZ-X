@@ -260,7 +260,7 @@ class KeyboarizImeService : InputMethodService() {
                     textSize = 14f
                     gravity = Gravity.START or Gravity.CENTER_VERTICAL
                     setTextColor(textColor)
-                    background = KeyShapeDrawable(keyColor, keyShape, resources.displayMetrics.density, borderColor = clipboardBorder)
+                    background = KeyShapeDrawable(keyColor, keyShape, resources.displayMetrics.density, borderColor = shortcutBorder)
                     isAllCaps = false
                     minWidth = 0
                     minimumWidth = 0
