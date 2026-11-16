@@ -1753,21 +1753,24 @@ private class ChickenOverlayView(context: Context) : View(context) {
         while(seg<dur.lastIndex && rem>=dur[seg]) { rem-=dur[seg]; seg++ }
         val a=pts[seg]; val b=if(seg==pts.lastIndex)pts[0] else pts[seg+1]
         val t=(rem.toFloat()/dur[seg]).coerceIn(0f,1f); val e=t*t*(3f-2f*t)
-        val x:Float; val y:Float; val faceLeft:Boolean
+        val x:Float; val y:Float; val faceLeft:Boolean; val verticalAngle:Float
         if(seg%2==0) {
             x=width*(a.first+(b.first-a.first)*e); y=height*(a.second+(b.second-a.second)*e)
             faceLeft=b.first<a.first
+            verticalAngle=0f
         } else {
             val cx=width*(if(a.first>0.5f)0.885f else 0.115f); val cy=height*((a.second+b.second)/2f); val q=1f-t
             x=q*q*width*a.first+2f*q*t*cx+t*t*width*b.first
             y=q*q*height*a.second+2f*q*t*cy+t*t*height*b.second
-            // Setelah belokan, ayam menghadap arah lintasan baris berikutnya.
-            faceLeft=a.first<0.5f
+            // Samakan orientasi jalur vertikal dengan motor: putar mengikuti arah naik/turun.
+            faceLeft=false
+            verticalAngle=if(b.second>=a.second)90f else -90f
         }
         val phase=elapsed/115f
         val step=kotlin.math.sin(phase).toFloat()
         val bob=kotlin.math.abs(kotlin.math.sin(phase*2f)).toFloat()*0.65f*d
-        canvas.save(); canvas.translate(x,y+bob); if(faceLeft) canvas.scale(-1f,1f)
+        canvas.save(); canvas.translate(x,y+bob)
+        if(verticalAngle!=0f) canvas.rotate(verticalAngle) else if(faceLeft) canvas.scale(-1f,1f)
         val white=Color.rgb(244,239,222); val shade=Color.rgb(207,197,174)
         val red=Color.rgb(198,35,43); val dark=Color.rgb(65,43,34); val orange=Color.rgb(235,139,35)
         // Bayangan
