@@ -14,6 +14,8 @@ import android.graphics.drawable.Drawable
 import android.graphics.drawable.GradientDrawable
 import android.graphics.ColorFilter
 import android.graphics.PixelFormat
+import android.graphics.PorterDuff
+import android.graphics.PorterDuffColorFilter
 import android.os.Handler
 import android.os.Looper
 import android.text.InputType
@@ -744,7 +746,7 @@ class KeyboarizImeService : InputMethodService() {
     }
 
     private fun currentAnimationRoute(): String =
-        prefs.getString("keyboard_animation_route", "ZIGZAG") ?: "ZIGZAG"
+        prefs.getString("keyboard_animation_route", "SNAKE") ?: "SNAKE"
 
     private fun attachCharacterOverlay(keyboard: ViewGroup) {
         when (prefs.getString("keyboard_character", "NONE")) {
@@ -1245,6 +1247,20 @@ class KeyboarizImeService : InputMethodService() {
  * No image/GIF assets are used and keyboard measurement remains unchanged.
  */
 
+private fun applyCharacterColor(view: View, context: Context) {
+    val selected = context.getSharedPreferences("keyboard_settings", Context.MODE_PRIVATE)
+        .getString("keyboard_character_color", "ORIGINAL") ?: "ORIGINAL"
+    if (selected == "ORIGINAL") {
+        view.setLayerType(View.LAYER_TYPE_NONE, null)
+        return
+    }
+    val tint = try { Color.parseColor(selected) } catch (_: IllegalArgumentException) { return }
+    val filterPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        colorFilter = PorterDuffColorFilter(Color.argb(165, Color.red(tint), Color.green(tint), Color.blue(tint)), PorterDuff.Mode.SRC_ATOP)
+    }
+    view.setLayerType(View.LAYER_TYPE_HARDWARE, filterPaint)
+}
+
 private data class CharacterMotion(val x: Float, val y: Float, val angle: Float, val verticalSegment: Boolean = false)
 
 /** Menghitung posisi dan arah semua karakter berdasarkan jalur yang dipilih. */
@@ -1359,7 +1375,7 @@ private class AntOverlayView(context: Context, private val routeMode: String) : 
         isClickable = false
         isFocusable = false
         importantForAccessibility = IMPORTANT_FOR_ACCESSIBILITY_NO
-        setWillNotDraw(false)
+        setWillNotDraw(false); applyCharacterColor(this, context)
     }
 
     override fun onAttachedToWindow() {
@@ -1460,7 +1476,7 @@ private class DragonflyOverlayView(context: Context, private val routeMode: Stri
     private val stroke = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.STROKE; strokeCap = Paint.Cap.ROUND }
     private val start = android.os.SystemClock.uptimeMillis()
     private val frame = object : Runnable { override fun run() { if (!isAttachedToWindow) return; invalidate(); postDelayed(this, 34L) } }
-    init { isClickable = false; isFocusable = false; importantForAccessibility = IMPORTANT_FOR_ACCESSIBILITY_NO; setWillNotDraw(false) }
+    init { isClickable = false; isFocusable = false; importantForAccessibility = IMPORTANT_FOR_ACCESSIBILITY_NO; setWillNotDraw(false); applyCharacterColor(this, context) }
     override fun onAttachedToWindow() { super.onAttachedToWindow(); removeCallbacks(frame); post(frame) }
     override fun onDetachedFromWindow() { removeCallbacks(frame); super.onDetachedFromWindow() }
     override fun onDraw(canvas: Canvas) {
@@ -1531,7 +1547,7 @@ private class MustangOverlayView(context: Context, private val routeMode: String
         isClickable = false
         isFocusable = false
         importantForAccessibility = IMPORTANT_FOR_ACCESSIBILITY_NO
-        setWillNotDraw(false)
+        setWillNotDraw(false); applyCharacterColor(this, context)
     }
 
     override fun onAttachedToWindow() {
@@ -1644,7 +1660,7 @@ private class MotorcycleOverlayView(context: Context, private val routeMode: Str
         isClickable = false
         isFocusable = false
         importantForAccessibility = IMPORTANT_FOR_ACCESSIBILITY_NO
-        setWillNotDraw(false)
+        setWillNotDraw(false); applyCharacterColor(this, context)
     }
     override fun onAttachedToWindow() { super.onAttachedToWindow(); removeCallbacks(frame); post(frame) }
     override fun onDetachedFromWindow() { removeCallbacks(frame); super.onDetachedFromWindow() }
@@ -1784,7 +1800,7 @@ private class ChickenOverlayView(context: Context, private val routeMode: String
     private val frame = object : Runnable {
         override fun run() { if (!isAttachedToWindow) return; invalidate(); postDelayed(this, 34L) }
     }
-    init { isClickable = false; isFocusable = false; importantForAccessibility = IMPORTANT_FOR_ACCESSIBILITY_NO; setWillNotDraw(false) }
+    init { isClickable = false; isFocusable = false; importantForAccessibility = IMPORTANT_FOR_ACCESSIBILITY_NO; setWillNotDraw(false); applyCharacterColor(this, context) }
     override fun onAttachedToWindow() { super.onAttachedToWindow(); removeCallbacks(frame); post(frame) }
     override fun onDetachedFromWindow() { removeCallbacks(frame); super.onDetachedFromWindow() }
 
