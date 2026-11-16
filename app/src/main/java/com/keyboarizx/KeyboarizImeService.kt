@@ -1316,8 +1316,16 @@ private class DragonflyOverlayView(context: Context) : View(context) {
             x=q*q*width*a.first+2f*q*t*cx+t*t*width*b.first; y=q*q*height*a.second+2f*q*t*cy+t*t*height*b.second
             val dx=2f*q*(cx-width*a.first)+2f*t*(width*b.first-cx); val dy=2f*q*(cy-height*a.second)+2f*t*(height*b.second-cy); angle=Math.toDegrees(kotlin.math.atan2(dy.toDouble(),dx.toDouble())).toFloat() }
         val flap=kotlin.math.sin(elapsed/95f*2f).toFloat()*2.2f*d
-        canvas.save(); canvas.translate(x,y); canvas.rotate(angle)
-        // Top view: four translucent wings spread laterally, head at the leading end (+X).
+        // Keep the dorsal side facing the viewer; mirror horizontally rather than rolling upside down.
+        val mirrorX = angle > 90f || angle < -90f
+        val uprightAngle = when {
+            angle > 90f -> angle - 180f
+            angle < -90f -> angle + 180f
+            else -> angle
+        }
+        canvas.save(); canvas.translate(x,y); canvas.rotate(uprightAngle)
+        if (mirrorX) canvas.scale(-1f, 1f)
+        // True top view: wings spread sideways, paired eyes and six legs visible.
         fill.color=Color.argb(115,135,220,245)
         val fore=Path().apply { moveTo(-1f*d,-1f*d); quadTo(-9f*d,-15f*d-flap,-22f*d,-17f*d-flap); quadTo(-17f*d,-5f*d,-1f*d,1f*d); close() }
         canvas.drawPath(fore,fill); canvas.save(); canvas.scale(1f,-1f); canvas.drawPath(fore,fill); canvas.restore()
@@ -1326,13 +1334,23 @@ private class DragonflyOverlayView(context: Context) : View(context) {
         stroke.color=Color.argb(175,55,115,145); stroke.strokeWidth=0.65f*d
         canvas.drawLine(-2f*d,-1f*d,-19f*d,-15f*d-flap,stroke); canvas.drawLine(-2f*d,1f*d,-19f*d,15f*d+flap,stroke)
         stroke.color=Color.rgb(35,63,73); stroke.strokeWidth=1f*d
-        for(i in 0..2) { val ax=(i*2-2)*2.2f*d; val swing=kotlin.math.sin(elapsed/95f+i*1.8f).toFloat()*1.2f*d; canvas.drawLine(ax,1f*d,ax-4f*d+swing,5f*d,stroke); canvas.drawLine(ax,1f*d,ax+4f*d-swing,5f*d,stroke) }
+        for(i in 0..2) {
+            val ax=(i*2-2)*2.2f*d
+            val swing=kotlin.math.sin(elapsed/210f+i*1.8f).toFloat()*0.8f*d
+            canvas.drawLine(ax,-1f*d,ax-3f*d+swing,-5f*d,stroke)
+            canvas.drawLine(ax,1f*d,ax-3f*d+swing,5f*d,stroke)
+        }
         fill.color=Color.rgb(37,105,119); canvas.drawRoundRect(android.graphics.RectF(-19f*d,-2.2f*d,3f*d,2.2f*d),2f*d,2f*d,fill)
         stroke.color=Color.rgb(150,208,207); stroke.strokeWidth=0.7f*d
         for(i in 1..4) canvas.drawLine((-17f+i*4f)*d,-1.8f*d,(-17f+i*4f)*d,1.8f*d,stroke)
         fill.color=Color.rgb(46,125,138); canvas.drawOval(android.graphics.RectF(-3f*d,-4f*d,6f*d,4f*d),fill)
         fill.color=Color.rgb(28,65,79); canvas.drawCircle(7f*d,0f,4.2f*d,fill)
-        fill.color=Color.WHITE; canvas.drawCircle(8.5f*d,-1.4f*d,0.8f*d,fill)
+        fill.color=Color.rgb(20,43,55)
+        canvas.drawCircle(7.2f*d,-2.5f*d,2.0f*d,fill)
+        canvas.drawCircle(7.2f*d,2.5f*d,2.0f*d,fill)
+        fill.color=Color.rgb(205,245,245)
+        canvas.drawCircle(7.9f*d,-3.0f*d,0.65f*d,fill)
+        canvas.drawCircle(7.9f*d,2.0f*d,0.65f*d,fill)
         canvas.restore()
     }
 }
