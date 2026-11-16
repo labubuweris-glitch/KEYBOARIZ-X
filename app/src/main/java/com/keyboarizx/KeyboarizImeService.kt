@@ -80,18 +80,15 @@ class KeyboarizImeService : InputMethodService() {
     override fun onCreateInputView(): View = createKeyboardView()
 
     private fun createKeyboardView(): View {
-        val textColor = prefs.getInt("textColor", Color.WHITE)
-        val keyColor = prefs.getInt("keyColor", Color.rgb(37, 55, 70))
-        val backgroundColor = prefs.getInt("backgroundColor", Color.rgb(17, 28, 39))
+        val textColor = prefs.getInt("textColor", Color.parseColor("#F1C40F"))
+        val keyColor = prefs.getInt("keyColor", Color.BLACK)
+        val backgroundColor = prefs.getInt("backgroundColor", Color.BLACK)
         val keyShape = prefs.getString("keyShape", "ROUNDED") ?: "ROUNDED"
 
-        // Warna garis pembeda tiap kelompok tombol.
-        val clipboardBorder = Color.rgb(57, 198, 232) // cyan
-        val rizboardBorder = Color.rgb(167, 139, 250) // ungu
-        val customBorder = Color.rgb(245, 163, 75) // oranye
-        val letterBorder = Color.rgb(69, 184, 232) // biru muda
-        val numberBorder = Color.rgb(231, 182, 83) // emas
-        val functionBorder = Color.rgb(91, 205, 151) // hijau lembut
+        // Tiga warna garis yang dapat disimpan terpisah pada setiap tema.
+        val shortcutBorder = prefs.getInt("shortcutBorderColor", Color.parseColor("#39C6E8"))
+        val characterBorder = prefs.getInt("characterBorderColor", Color.parseColor("#45B8E8"))
+        val functionBorder = prefs.getInt("functionBorderColor", Color.parseColor("#5BCD97"))
 
         // Aksen dibuat dari warna tombol + warna tulisan agar selalu selaras dengan tema aktif.
         val accentColor = blendThemeColors(keyColor, textColor, 0.28f)
@@ -176,7 +173,7 @@ class KeyboarizImeService : InputMethodService() {
                             setTextColor(textColor)
                             background = KeyShapeDrawable(
                                 keyColor, keyShape, resources.displayMetrics.density,
-                                borderColor = if (customMode) customBorder else rizboardBorder
+                                borderColor = characterBorder
                             )
                             setPadding(dp(3), 0, dp(3), 0)
                             setOnClickListener {
@@ -203,7 +200,7 @@ class KeyboarizImeService : InputMethodService() {
         }
 
         if (clipboardMode) {
-            makeToolButton("CLIPBOARD", 2.2f, clipboardBorder) { }
+            makeToolButton("CLIPBOARD", 2.2f, shortcutBorder) { }
             makeToolButton("✕", 0.7f) {
                 clipboardMode = false
                 selectedPinCategory = null
@@ -222,7 +219,7 @@ class KeyboarizImeService : InputMethodService() {
                     setTextColor(if (clipboardPage == page) accentTextColor else textColor)
                     background = KeyShapeDrawable(
                         if (clipboardPage == page) accentColor else keyColor,
-                        keyShape, resources.displayMetrics.density, borderColor = clipboardBorder
+                        keyShape, resources.displayMetrics.density, borderColor = shortcutBorder
                     )
                     setOnClickListener {
                         clipboardPage = page
@@ -437,24 +434,24 @@ class KeyboarizImeService : InputMethodService() {
 
         // Number Pad halaman 3 tidak menampilkan shortcut Clipboard, RIZBOARD, dan CUSTOM.
         if (!(numberMode && symbolPage == 3)) {
-            makeToolButton("▤ Clipboard", 1f, clipboardBorder) {
+            makeToolButton("▤ Clipboard", 1f, shortcutBorder) {
                 captureCurrentClipboard()
                 clipboardMode = true
                 rizboardMode = false
                 setInputView(createKeyboardView())
             }
-            makeToolButton("RIZBOARD", 1f, rizboardBorder) {
+            makeToolButton("RIZBOARD", 1f, shortcutBorder) {
                 clipboardMode = false
                 rizboardMode = true
                 customMode = false
                 setInputView(createKeyboardView())            }
-            makeToolButton("CUSTOM", 1f, customBorder) {
+            makeToolButton("CUSTOM", 1f, shortcutBorder) {
                 clipboardMode = false
                 rizboardMode = false
                 customMode = true
                 setInputView(createKeyboardView())
             }
-            makeToolButton("1+2", 1f, numberBorder) {
+            makeToolButton("1+2", 1f, shortcutBorder) {
                 clipboardMode = false
                 rizboardMode = false
                 customMode = false
@@ -476,12 +473,9 @@ class KeyboarizImeService : InputMethodService() {
             keyboardRowIndex++
             keys.forEachIndexed { index, label ->
                 val displayLabel = if (label == "↵") enterKeyLabel() else label
-                val borderColor = when {
-                    label == "SPACE" || label == "SPACE_ICON" -> letterBorder
-                    label in listOf("⇧", "⌫", "↵", "BARIS_BARU", "?123", "ABC", "1+2", "=\\<") -> functionBorder
-                    numberMode || label.length == 1 && label[0].isDigit() -> numberBorder
-                    else -> letterBorder
-                }
+                val borderColor = if (
+                    label in listOf("SPACE", "SPACE_ICON", "⇧", "⌫", "↵", "BARIS_BARU", "?123", "ABC", "1+2", "=\\<")
+                ) functionBorder else characterBorder
                 val button = Button(this).apply {
                     text = when {
                         label == "⇧" && shiftState == 2 -> "⬆"
@@ -1021,7 +1015,7 @@ class KeyboarizImeService : InputMethodService() {
             orientation = LinearLayout.HORIZONTAL
             setPadding(dp(4), dp(4), dp(4), dp(4))
             background = KeyShapeDrawable(
-                keyColor, keyShape, resources.displayMetrics.density,                borderColor = Color.rgb(69, 184, 232)
+                keyColor, keyShape, resources.displayMetrics.density,                borderColor = prefs.getInt("characterBorderColor", Color.parseColor("#45B8E8"))
             )
         }
         lateinit var popup: PopupWindow
