@@ -743,6 +743,9 @@ class KeyboarizImeService : InputMethodService() {
         return root
     }
 
+    private fun currentAnimationRoute(): String =
+        prefs.getString("keyboard_animation_route", "ZIGZAG") ?: "ZIGZAG"
+
     private fun attachCharacterOverlay(keyboard: ViewGroup) {
         when (prefs.getString("keyboard_character", "NONE")) {
             "ANT" -> withAntOverlay(keyboard)
@@ -757,7 +760,7 @@ class KeyboarizImeService : InputMethodService() {
 
     private fun withDragonflyOverlay(keyboard: View) {
         val group = keyboard as? ViewGroup ?: return
-        val view = DragonflyOverlayView(this)
+        val view = DragonflyOverlayView(this, currentAnimationRoute())
         group.overlay.add(view)
         fun fit() {
             val w = group.width; val h = group.height
@@ -771,7 +774,7 @@ class KeyboarizImeService : InputMethodService() {
 
     private fun withMustangOverlay(keyboard: View) {
         val group = keyboard as? ViewGroup ?: return
-        val car = MustangOverlayView(this)
+        val car = MustangOverlayView(this, currentAnimationRoute())
         group.overlay.add(car)
         fun fit() {
             val w = group.width; val h = group.height
@@ -785,7 +788,7 @@ class KeyboarizImeService : InputMethodService() {
 
     private fun withMotorcycleOverlay(keyboard: View) {
         val group = keyboard as? ViewGroup ?: return
-        val bike = MotorcycleOverlayView(this)
+        val bike = MotorcycleOverlayView(this, currentAnimationRoute())
         group.overlay.add(bike)
         fun fit() {
             val w = group.width; val h = group.height
@@ -799,7 +802,7 @@ class KeyboarizImeService : InputMethodService() {
 
     private fun withChickenOverlay(keyboard: View) {
         val group = keyboard as? ViewGroup ?: return
-        val chicken = ChickenOverlayView(this)
+        val chicken = ChickenOverlayView(this, currentAnimationRoute())
         group.overlay.add(chicken)
         fun fit() {
             val w = group.width; val h = group.height
@@ -813,7 +816,7 @@ class KeyboarizImeService : InputMethodService() {
 
     private fun withAntOverlay(keyboard: View) {
         val group = keyboard as? ViewGroup ?: return
-        val ant = AntOverlayView(this)
+        val ant = AntOverlayView(this, currentAnimationRoute())
         group.overlay.add(ant)
 
         fun fitOverlay() {
@@ -1241,7 +1244,96 @@ class KeyboarizImeService : InputMethodService() {
  * Tiny ant character drawn directly on a transparent, touch-through keyboard overlay.
  * No image/GIF assets are used and keyboard measurement remains unchanged.
  */
-private class AntOverlayView(context: Context) : View(context) {
+
+private data class CharacterMotion(val x: Float, val y: Float, val angle: Float)
+
+/** Menghitung posisi dan arah semua karakter berdasarkan jalur yang dipilih. */
+private fun calculateCharacterMotion(width: Int, height: Int, elapsed: Long, routeMode: String): CharacterMotion {
+    val w = width.toFloat()
+    val h = height.toFloat()
+    fun wrap(value: Float): Float = ((value % 1f) + 1f) % 1f
+    fun angle(dx: Float, dy: Float): Float =
+        Math.toDegrees(kotlin.math.atan2(dy.toDouble(), dx.toDouble())).toFloat()
+
+    when (routeMode) {
+        "STRAIGHT" -> {
+            val phase = (elapsed % 30000L).toFloat() / 30000f
+            val forward = phase < 0.5f
+            val t = if (forward) phase * 2f else (1f - phase) * 2f
+            return CharacterMotion(w * (0.08f + 0.84f * t), h * 0.53f, if (forward) 0f else 180f)
+        }
+        "WAVE" -> {
+            val phase = (elapsed % 30000L).toFloat() / 30000f
+            val forward = phase < 0.5f
+            val t = if (forward) phase * 2f else (1f - phase) * 2f
+            val direction = if (forward) 1f else -1f
+            val wave = t * (Math.PI.toFloat() * 4f)
+            val x = 0.08f + 0.84f * t
+            val y = 0.50f + 0.27f * kotlin.math.sin(wave)
+            val dx = 0.84f * direction
+            val dy = 0.27f * 4f * Math.PI.toFloat() * kotlin.math.cos(wave) * direction
+            return CharacterMotion(w * x, h * y, angle(dx, dy))
+        }
+        "CIRCLE" -> {
+            val theta = elapsed.toFloat() / 6500f
+            val x = 0.50f + 0.36f * kotlin.math.cos(theta)
+            val y = 0.52f + 0.31f * kotlin.math.sin(theta)
+            val dx = -0.36f * kotlin.math.sin(theta)
+            val dy = 0.31f * kotlin.math.cos(theta)
+            return CharacterMotion(w * x, h * y, angle(dx, dy))
+        }
+        "SNAKE" -> {
+            // Gerak berkelok di seluruh area. Koordinat dibungkus seperti permainan ular klasik:
+            // saat melewati satu tepi, karakter langsung muncul dari tepi yang berlawanan.
+            val phase = elapsed.toFloat() / 1850f
+            val rawX = 0.50f + 0.67f * kotlin.math.sin(phase) +
+                0.14f * kotlin.math.sin(phase * 0.43f + 0.6f)
+            val rawY = 0.50f + 0.66f * kotlin.math.sin(phase * 0.71f + 1.15f) +
+                0.12f * kotlin.math.cos(phase * 1.37f)
+            val dx = 0.67f * kotlin.math.cos(phase) +
+                0.0602f * kotlin.math.cos(phase * 0.43f + 0.6f)
+            val dy = 0.4686f * kotlin.math.cos(phase * 0.71f + 1.15f) -
+                0.1644f * kotlin.math.sin(phase * 1.37f)
+            return CharacterMotion(w * wrap(rawX), h * wrap(rawY), angle(dx, dy))
+        }
+        else -> {
+            // Jalur Zig-zag bawaan dipertahankan sebagai pilihan default.
+            val points = arrayOf(
+                0.07f to 0.30f, 0.93f to 0.30f,
+                0.93f to 0.47f, 0.07f to 0.47f,
+                0.07f to 0.68f, 0.93f to 0.68f,
+                0.93f to 0.87f, 0.07f to 0.87f
+            )
+            val durations = longArrayOf(6200L, 1900L, 6200L, 1900L, 6200L, 1900L, 6200L, 2200L)
+            val cycle = durations.sum()
+            var remaining = elapsed % cycle
+            var segment = 0
+            while (segment < durations.lastIndex && remaining >= durations[segment]) {
+                remaining -= durations[segment]
+                segment++
+            }
+            val from = points[segment]
+            val to = if (segment == points.lastIndex) points[0] else points[segment + 1]
+            val t = (remaining.toFloat() / durations[segment]).coerceIn(0f, 1f)
+            val eased = t * t * (3f - 2f * t)
+            if (segment % 2 == 0) {
+                val x = from.first + (to.first - from.first) * eased
+                val y = from.second + (to.second - from.second) * eased
+                return CharacterMotion(w * x, h * y, if (to.first >= from.first) 0f else 180f)
+            }
+            val controlX = if (from.first > 0.5f) 0.885f else 0.115f
+            val controlY = (from.second + to.second) / 2f
+            val q = 1f - t
+            val x = q*q*from.first + 2f*q*t*controlX + t*t*to.first
+            val y = q*q*from.second + 2f*q*t*controlY + t*t*to.second
+            val dx = 2f*q*(controlX-from.first) + 2f*t*(to.first-controlX)
+            val dy = 2f*q*(controlY-from.second) + 2f*t*(to.second-controlY)
+            return CharacterMotion(w * x, h * y, angle(dx, dy))
+        }
+    }
+}
+
+private class AntOverlayView(context: Context, private val routeMode: String) : View(context) {
     private val density = resources.displayMetrics.density
     private val bodyPaint = Paint(Paint.ANTI_ALIAS_FLAG)
     private val legPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
@@ -1285,51 +1377,12 @@ private class AntOverlayView(context: Context) : View(context) {
         super.onDraw(canvas)
         if (width <= 0 || height <= 0) return
 
-        // Jalur zig-zag dan durasi dipertahankan seperti versi sebelumnya.
-        val points = arrayOf(
-            0.07f to 0.30f, 0.93f to 0.30f,
-            0.93f to 0.47f, 0.07f to 0.47f,
-            0.07f to 0.68f, 0.93f to 0.68f,
-            0.93f to 0.87f, 0.07f to 0.87f
-        )
-        val durations = longArrayOf(6200L, 1900L, 6200L, 1900L, 6200L, 1900L, 6200L, 2200L)
-        val cycle = durations.sum()
-        val elapsed = (android.os.SystemClock.uptimeMillis() - startedAt) % cycle
-        var remaining = elapsed
-        var segment = 0
-        while (segment < durations.lastIndex && remaining >= durations[segment]) {
-            remaining -= durations[segment]
-            segment++
-        }
-        val from = points[segment]
-        val to = if (segment == points.lastIndex) points[0] else points[segment + 1]
-        val progress = (remaining.toFloat() / durations[segment]).coerceIn(0f, 1f)
-        val eased = progress * progress * (3f - 2f * progress)
-        val x: Float
-        val pathY: Float
-        val heading: Float
-        if (segment % 2 == 0) {
-            x = width * (from.first + (to.first - from.first) * eased)
-            pathY = height * (from.second + (to.second - from.second) * eased)
-            heading = if (to.first >= from.first) 0f else 180f
-        } else {
-            val controlX = width * (if (from.first > 0.5f) 0.885f else 0.115f)
-            val controlY = height * ((from.second + to.second) / 2f)
-            val oneMinus = 1f - progress
-            x = oneMinus * oneMinus * width * from.first +
-                2f * oneMinus * progress * controlX +
-                progress * progress * width * to.first
-            pathY = oneMinus * oneMinus * height * from.second +
-                2f * oneMinus * progress * controlY +
-                progress * progress * height * to.second
-            val dx = 2f * oneMinus * (controlX - width * from.first) +
-                2f * progress * (width * to.first - controlX)
-            val dy = 2f * oneMinus * (controlY - height * from.second) +
-                2f * progress * (height * to.second - controlY)
-            heading = Math.toDegrees(kotlin.math.atan2(dy.toDouble(), dx.toDouble())).toFloat()
-        }
+        val motion = calculateCharacterMotion(width, height, android.os.SystemClock.uptimeMillis() - startedAt, routeMode)
+        val x = motion.x
+        val pathY = motion.y
+        val heading = motion.angle
 
-        // Orientasikan seluruh tubuh mengikuti arah lintasan.
+
         // Saat bergerak ke kiri, balik sumbu kaki agar tetap menghadap permukaan keyboard.
         // Pada jalur naik/turun, tubuh ikut berputar sehingga kepala memimpin arah gerak.
         val headingNormalized = ((heading % 360f) + 360f) % 360f
@@ -1400,7 +1453,7 @@ private class AntOverlayView(context: Context) : View(context) {
  * For staggered styles the whole row (and therefore its touch targets) is shifted together.
  */
 /** Capung tampak dari atas, mengikuti lintasan zig-zag semut dengan kecepatan sama. */
-private class DragonflyOverlayView(context: Context) : View(context) {
+private class DragonflyOverlayView(context: Context, private val routeMode: String) : View(context) {
     private val d = resources.displayMetrics.density
     private val fill = Paint(Paint.ANTI_ALIAS_FLAG)
     private val stroke = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.STROKE; strokeCap = Paint.Cap.ROUND }
@@ -1411,17 +1464,11 @@ private class DragonflyOverlayView(context: Context) : View(context) {
     override fun onDetachedFromWindow() { removeCallbacks(frame); super.onDetachedFromWindow() }
     override fun onDraw(canvas: Canvas) {
         super.onDraw(canvas); if (width <= 0 || height <= 0) return
-        val p = arrayOf(0.07f to 0.30f, 0.93f to 0.30f, 0.93f to 0.47f, 0.07f to 0.47f, 0.07f to 0.68f, 0.93f to 0.68f, 0.93f to 0.87f, 0.07f to 0.87f)
-        val dur = longArrayOf(6200L,1900L,6200L,1900L,6200L,1900L,6200L,2200L); val cycle=dur.sum()
-        val elapsed=(android.os.SystemClock.uptimeMillis()-start)%cycle; var rem=elapsed; var seg=0
-        while(seg<dur.lastIndex && rem>=dur[seg]) { rem-=dur[seg]; seg++ }
-        val a=p[seg]; val b=if(seg==p.lastIndex)p[0] else p[seg+1]; val t=(rem.toFloat()/dur[seg]).coerceIn(0f,1f); val e=t*t*(3f-2f*t)
-        val x:Float; val y:Float; val angle:Float
-        if(seg%2==0) { x=width*(a.first+(b.first-a.first)*e); y=height*(a.second+(b.second-a.second)*e); angle=if(b.first>=a.first)0f else 180f }
-        else { val cx=width*(if(a.first>0.5f)0.885f else 0.115f); val cy=height*((a.second+b.second)/2f); val q=1f-t
-            x=q*q*width*a.first+2f*q*t*cx+t*t*width*b.first; y=q*q*height*a.second+2f*q*t*cy+t*t*height*b.second
-            val dx=2f*q*(cx-width*a.first)+2f*t*(width*b.first-cx); val dy=2f*q*(cy-height*a.second)+2f*t*(height*b.second-cy); angle=Math.toDegrees(kotlin.math.atan2(dy.toDouble(),dx.toDouble())).toFloat() }
-        val flap=kotlin.math.sin(elapsed/95f*2f).toFloat()*2.2f*d
+        val motion = calculateCharacterMotion(width, height, android.os.SystemClock.uptimeMillis() - start, routeMode)
+        val x = motion.x
+        val y = motion.y
+        val angle = motion.angle
+kotlin.math.sin(elapsed/95f*2f).toFloat()*2.2f*d
         // Keep the dorsal side facing the viewer; mirror horizontally rather than rolling upside down.
         val mirrorX = angle > 90f || angle < -90f
         val uprightAngle = when {
@@ -1462,7 +1509,7 @@ private class DragonflyOverlayView(context: Context) : View(context) {
 }
 
 /** Mustang merah tampak atas, melaju di lintasan zig-zag yang sama dengan semut. */
-private class MustangOverlayView(context: Context) : View(context) {
+private class MustangOverlayView(context: Context, private val routeMode: String) : View(context) {
     private val d = resources.displayMetrics.density
     private val paint = Paint(Paint.ANTI_ALIAS_FLAG)
     private val outline = Paint(Paint.ANTI_ALIAS_FLAG).apply {
@@ -1500,44 +1547,10 @@ private class MustangOverlayView(context: Context) : View(context) {
         super.onDraw(canvas)
         if (width <= 0 || height <= 0) return
 
-        val points = arrayOf(
-            0.07f to 0.30f, 0.93f to 0.30f,
-            0.93f to 0.47f, 0.07f to 0.47f,
-            0.07f to 0.68f, 0.93f to 0.68f,
-            0.93f to 0.87f, 0.07f to 0.87f
-        )
-        val durations = longArrayOf(6200L, 1900L, 6200L, 1900L, 6200L, 1900L, 6200L, 2200L)
-        val cycle = durations.sum()
-        val elapsed = (android.os.SystemClock.uptimeMillis() - started) % cycle
-        var remaining = elapsed
-        var segment = 0
-        while (segment < durations.lastIndex && remaining >= durations[segment]) {
-            remaining -= durations[segment]
-            segment++
-        }
-
-        val a = points[segment]
-        val b = if (segment == points.lastIndex) points[0] else points[segment + 1]
-        val t = (remaining.toFloat() / durations[segment]).coerceIn(0f, 1f)
-        val eased = t * t * (3f - 2f * t)
-        val x: Float
-        val y: Float
-        val angle: Float
-
-        if (segment % 2 == 0) {
-            x = width * (a.first + (b.first - a.first) * eased)
-            y = height * (a.second + (b.second - a.second) * eased)
-            angle = if (b.first >= a.first) 0f else 180f
-        } else {
-            val controlX = width * if (a.first > 0.5f) 0.885f else 0.115f
-            val controlY = height * ((a.second + b.second) / 2f)
-            val q = 1f - t
-            x = q * q * width * a.first + 2f * q * t * controlX + t * t * width * b.first
-            y = q * q * height * a.second + 2f * q * t * controlY + t * t * height * b.second
-            val dx = 2f * q * (controlX - width * a.first) + 2f * t * (width * b.first - controlX)
-            val dy = 2f * q * (controlY - height * a.second) + 2f * t * (height * b.second - controlY)
-            angle = Math.toDegrees(kotlin.math.atan2(dy.toDouble(), dx.toDouble())).toFloat()
-        }
+        val motion = calculateCharacterMotion(width, height, android.os.SystemClock.uptimeMillis() - started, routeMode)
+        val x = motion.x
+        val y = motion.y
+        val angle = motion.angle
 
         canvas.save()
         canvas.translate(x, y)
@@ -1612,7 +1625,7 @@ private class MustangOverlayView(context: Context) : View(context) {
 }
 
 /** Side-view sport motorcycle with a helmeted rider, following the keyboard zig-zag route. */
-private class MotorcycleOverlayView(context: Context) : View(context) {
+private class MotorcycleOverlayView(context: Context, private val routeMode: String) : View(context) {
     private val d = resources.displayMetrics.density
     private val p = Paint(Paint.ANTI_ALIAS_FLAG).apply { strokeCap = Paint.Cap.ROUND; strokeJoin = Paint.Join.ROUND }
     private val started = android.os.SystemClock.uptimeMillis()
@@ -1649,43 +1662,16 @@ private class MotorcycleOverlayView(context: Context) : View(context) {
     override fun onDraw(canvas: Canvas) {
         super.onDraw(canvas)
         if (width <= 0 || height <= 0) return
-        val points = arrayOf(
-            0.07f to 0.30f, 0.93f to 0.30f, 0.93f to 0.47f, 0.07f to 0.47f,
-            0.07f to 0.68f, 0.93f to 0.68f, 0.93f to 0.87f, 0.07f to 0.87f
-        )
-        val durations = longArrayOf(7200L, 1900L, 7200L, 1900L, 7200L, 1900L, 7200L, 2200L)
-        val cycle = durations.sum()
-        val elapsed = (android.os.SystemClock.uptimeMillis() - started) % cycle
-        var remaining = elapsed
-        var segment = 0
-        while (segment < durations.lastIndex && remaining >= durations[segment]) {
-            remaining -= durations[segment]
-            segment++
-        }
-        val a = points[segment]
-        val b = if (segment == points.lastIndex) points[0] else points[segment + 1]
-        val t = (remaining.toFloat() / durations[segment]).coerceIn(0f, 1f)
-        val eased = t*t*(3f-2f*t)
-        val x: Float
-        val y: Float
-        val faceLeft: Boolean
-        val verticalAngle: Float
-        if (segment % 2 == 0) {
-            x = width * (a.first + (b.first-a.first)*eased)
-            y = height * (a.second + (b.second-a.second)*eased)
-            faceLeft = b.first < a.first
-            verticalAngle = 0f
-        } else {
-            val cx = width * if (a.first > 0.5f) 0.885f else 0.115f
-            val cy = height * ((a.second+b.second)/2f)
-            val q = 1f-t
-            x = q*q*width*a.first + 2f*q*t*cx + t*t*width*b.first
-            y = q*q*height*a.second + 2f*q*t*cy + t*t*height*b.second
-            faceLeft = false
-            // Putar 90 derajat mengikuti arah perpindahan baris,
-            // tanpa rotasi 180 derajat yang membuat motor/pengendara terbalik.
-            verticalAngle = if (b.second >= a.second) 90f else -90f
-        }
+        val motion = calculateCharacterMotion(width, height, android.os.SystemClock.uptimeMillis() - started, routeMode)
+        val x = motion.x
+        val y = motion.y
+        val movingLeft = kotlin.math.cos(Math.toRadians(motion.angle.toDouble())) < 0.0
+        val movingVertical = kotlin.math.abs(kotlin.math.sin(Math.toRadians(motion.angle.toDouble()))) >
+            kotlin.math.abs(kotlin.math.cos(Math.toRadians(motion.angle.toDouble())))
+        val faceLeft = movingLeft
+        val verticalAngle = if (movingVertical) {
+            if (kotlin.math.sin(Math.toRadians(motion.angle.toDouble())) >= 0.0) 90f else -90f
+        } else 0f
 
         canvas.save()
         canvas.translate(x, y)
@@ -1786,7 +1772,7 @@ private class MotorcycleOverlayView(context: Context) : View(context) {
 
 
 /** Ayam berjalan tampak samping dengan gerakan kaki bergantian di jalur zig-zag keyboard. */
-private class ChickenOverlayView(context: Context) : View(context) {
+private class ChickenOverlayView(context: Context, private val routeMode: String) : View(context) {
     private val d = resources.displayMetrics.density
     private val p = Paint(Paint.ANTI_ALIAS_FLAG).apply { strokeCap = Paint.Cap.ROUND; strokeJoin = Paint.Join.ROUND }
     private val started = android.os.SystemClock.uptimeMillis()
@@ -1804,28 +1790,17 @@ private class ChickenOverlayView(context: Context) : View(context) {
     override fun onDraw(canvas: Canvas) {
         super.onDraw(canvas)
         if (width <= 0 || height <= 0) return
-        val pts = arrayOf(0.07f to 0.30f,0.93f to 0.30f,0.93f to 0.47f,0.07f to 0.47f,
-            0.07f to 0.68f,0.93f to 0.68f,0.93f to 0.87f,0.07f to 0.87f)
-        val dur = longArrayOf(7200L,1900L,7200L,1900L,7200L,1900L,7200L,2200L)
-        val cycle=dur.sum(); val elapsed=(android.os.SystemClock.uptimeMillis()-started)%cycle
-        var rem=elapsed; var seg=0
-        while(seg<dur.lastIndex && rem>=dur[seg]) { rem-=dur[seg]; seg++ }
-        val a=pts[seg]; val b=if(seg==pts.lastIndex)pts[0] else pts[seg+1]
-        val t=(rem.toFloat()/dur[seg]).coerceIn(0f,1f); val e=t*t*(3f-2f*t)
-        val x:Float; val y:Float; val faceLeft:Boolean; val verticalAngle:Float
-        if(seg%2==0) {
-            x=width*(a.first+(b.first-a.first)*e); y=height*(a.second+(b.second-a.second)*e)
-            faceLeft=b.first<a.first
-            verticalAngle=0f
-        } else {
-            val cx=width*(if(a.first>0.5f)0.885f else 0.115f); val cy=height*((a.second+b.second)/2f); val q=1f-t
-            x=q*q*width*a.first+2f*q*t*cx+t*t*width*b.first
-            y=q*q*height*a.second+2f*q*t*cy+t*t*height*b.second
-            // Samakan orientasi jalur vertikal dengan motor: putar mengikuti arah naik/turun.
-            faceLeft=false
-            verticalAngle=if(b.second>=a.second)90f else -90f
-        }
-        val phase=elapsed/115f
+        val motion = calculateCharacterMotion(width, height, android.os.SystemClock.uptimeMillis() - started, routeMode)
+        val x = motion.x
+        val y = motion.y
+        val movingLeft = kotlin.math.cos(Math.toRadians(motion.angle.toDouble())) < 0.0
+        val movingVertical = kotlin.math.abs(kotlin.math.sin(Math.toRadians(motion.angle.toDouble()))) >
+            kotlin.math.abs(kotlin.math.cos(Math.toRadians(motion.angle.toDouble())))
+        val faceLeft = movingLeft
+        val verticalAngle = if (movingVertical) {
+            if (kotlin.math.sin(Math.toRadians(motion.angle.toDouble())) >= 0.0) 90f else -90f
+        } else 0f
+
         val step=kotlin.math.sin(phase).toFloat()
         val bob=kotlin.math.abs(kotlin.math.sin(phase*2f)).toFloat()*0.65f*d
         canvas.save(); canvas.translate(x,y+bob)
