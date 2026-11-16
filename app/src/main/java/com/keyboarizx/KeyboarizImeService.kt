@@ -1537,6 +1537,172 @@ private class MustangOverlayView(context: Context) : View(context) {
     }
 }
 
+/** Side-view sport motorcycle with a helmeted rider, following the keyboard zig-zag route. */
+private class MotorcycleOverlayView(context: Context) : View(context) {
+    private val d = resources.displayMetrics.density
+    private val p = Paint(Paint.ANTI_ALIAS_FLAG).apply { strokeCap = Paint.Cap.ROUND; strokeJoin = Paint.Join.ROUND }
+    private val started = android.os.SystemClock.uptimeMillis()
+    private val frame = object : Runnable {
+        override fun run() {
+            if (!isAttachedToWindow) return
+            invalidate()
+            postDelayed(this, 34L)
+        }
+    }
+
+    init {
+        isClickable = false
+        isFocusable = false
+        importantForAccessibility = IMPORTANT_FOR_ACCESSIBILITY_NO
+        setWillNotDraw(false)
+    }
+    override fun onAttachedToWindow() { super.onAttachedToWindow(); removeCallbacks(frame); post(frame) }
+    override fun onDetachedFromWindow() { removeCallbacks(frame); super.onDetachedFromWindow() }
+
+    private fun stroke(c: Canvas, color: Int, widthDp: Float, x1: Float, y1: Float, x2: Float, y2: Float) {
+        p.color = color
+        p.style = Paint.Style.STROKE
+        p.strokeWidth = widthDp * d
+        c.drawLine(x1*d, y1*d, x2*d, y2*d, p)
+        p.style = Paint.Style.FILL
+    }
+    private fun oval(c: Canvas, color: Int, l: Float, t: Float, r: Float, b: Float) {
+        p.color = color
+        p.style = Paint.Style.FILL
+        c.drawOval(RectF(l*d, t*d, r*d, b*d), p)
+    }
+
+    override fun onDraw(canvas: Canvas) {
+        super.onDraw(canvas)
+        if (width <= 0 || height <= 0) return
+        val points = arrayOf(
+            0.07f to 0.30f, 0.93f to 0.30f, 0.93f to 0.47f, 0.07f to 0.47f,
+            0.07f to 0.68f, 0.93f to 0.68f, 0.93f to 0.87f, 0.07f to 0.87f
+        )
+        val durations = longArrayOf(7200L, 1900L, 7200L, 1900L, 7200L, 1900L, 7200L, 2200L)
+        val cycle = durations.sum()
+        val elapsed = (android.os.SystemClock.uptimeMillis() - started) % cycle
+        var remaining = elapsed
+        var segment = 0
+        while (segment < durations.lastIndex && remaining >= durations[segment]) {
+            remaining -= durations[segment]
+            segment++
+        }
+        val a = points[segment]
+        val b = if (segment == points.lastIndex) points[0] else points[segment + 1]
+        val t = (remaining.toFloat() / durations[segment]).coerceIn(0f, 1f)
+        val eased = t*t*(3f-2f*t)
+        val x: Float
+        val y: Float
+        val angle: Float
+        if (segment % 2 == 0) {
+            x = width * (a.first + (b.first-a.first)*eased)
+            y = height * (a.second + (b.second-a.second)*eased)
+            angle = if (b.first >= a.first) 0f else 180f
+        } else {
+            val cx = width * if (a.first > 0.5f) 0.885f else 0.115f
+            val cy = height * ((a.second+b.second)/2f)
+            val q = 1f-t
+            x = q*q*width*a.first + 2f*q*t*cx + t*t*width*b.first
+            y = q*q*height*a.second + 2f*q*t*cy + t*t*height*b.second
+            val dx = 2f*q*(cx-width*a.first) + 2f*t*(width*b.first-cx)
+            val dy = 2f*q*(cy-height*a.second) + 2f*t*(height*b.second-cy)
+            angle = Math.toDegrees(kotlin.math.atan2(dy.toDouble(), dx.toDouble())).toFloat()
+        }
+
+        canvas.save()
+        canvas.translate(x, y)
+        canvas.rotate(angle)
+        val bob = kotlin.math.sin(elapsed / 180f).toFloat() * 0.45f * d
+        canvas.translate(0f, bob)
+
+        val black = Color.rgb(20, 24, 29)
+        val rubber = Color.rgb(13, 16, 19)
+        val metal = Color.rgb(170, 181, 190)
+        val red = Color.rgb(194, 22, 37)
+        val brightRed = Color.rgb(239, 48, 57)
+        val suit = Color.rgb(31, 43, 58)
+
+        // Soft shadow and the two wheels in clear side profile.
+        p.color = Color.argb(55, 0, 0, 0)
+        canvas.drawOval(RectF(-17f*d, 6f*d, 17f*d, 9f*d), p)
+        val wheelSpin = (elapsed / 30f) % 360f
+        for (wheelX in listOf(-11.5f, 11.5f)) {
+            canvas.save()
+            canvas.translate(wheelX*d, 4.2f*d)
+            p.color = rubber
+            canvas.drawCircle(0f, 0f, 4.5f*d, p)
+            p.color = Color.rgb(125, 133, 140)
+            p.style = Paint.Style.STROKE
+            p.strokeWidth = 1.0f*d
+            canvas.drawCircle(0f, 0f, 2.7f*d, p)
+            p.style = Paint.Style.FILL
+            canvas.rotate(wheelSpin)
+            for (i in 0 until 6) {
+                canvas.rotate(60f)
+                stroke(canvas, metal, 0.55f, -0.4f, 0f, 0.4f, 0f)
+            }
+            p.color = Color.rgb(68, 76, 84)
+            canvas.drawCircle(0f, 0f, 0.8f*d, p)
+            canvas.restore()
+        }
+
+        // Frame, swingarm, front fork and exhaust.
+        stroke(canvas, metal, 1.35f, -11f, 2f, -1f, 1f)
+        stroke(canvas, metal, 1.35f, -1f, 1f, 8.5f, 2f)
+        stroke(canvas, metal, 1.5f, 8.5f, 2f, 11.5f, -1f)
+        stroke(canvas, metal, 1.4f, 10f, 0f, 11.5f, 3.4f)
+        stroke(canvas, Color.rgb(112, 121, 128), 2f, -7f, 5.7f, 2f, 5.7f)
+        oval(canvas, Color.rgb(82, 91, 99), -3.8f, 0.7f, 4.1f, 5.1f)
+
+        // Tail section, seat, fuel tank and angular front fairing.
+        p.color = red
+        val tail = Path().apply {
+            moveTo(-15f*d, 0f); lineTo(-10f*d, -2.1f*d); lineTo(-5f*d, -2.2f*d)
+            lineTo(-3f*d, 1.5f*d); lineTo(-11f*d, 2.4f*d); close()
+        }
+        canvas.drawPath(tail, p)
+        p.color = black
+        canvas.drawRoundRect(RectF(-9f*d, -3.2f*d, -2f*d, -1.2f*d), 1.2f*d, 1.2f*d, p)
+        p.color = brightRed
+        val tank = Path().apply {
+            moveTo(-4f*d, -2.2f*d); quadTo(0f, -5.2f*d, 5f*d, -3f*d)
+            lineTo(8f*d, -0.8f*d); lineTo(2f*d, 1.5f*d); lineTo(-3f*d, 0.5f*d); close()
+        }
+        canvas.drawPath(tank, p)
+        p.color = red
+        val fairing = Path().apply {
+            moveTo(4f*d, -2.8f*d); quadTo(9f*d, -5.2f*d, 14f*d, -1.8f*d)
+            lineTo(15.5f*d, 0.6f*d); lineTo(11f*d, 2.1f*d); lineTo(7f*d, 0.6f*d); close()
+        }
+        canvas.drawPath(fairing, p)
+        p.color = Color.rgb(248, 239, 207)
+        canvas.drawRoundRect(RectF(13f*d, -1.2f*d, 15.2f*d, 0.1f*d), 0.5f*d, 0.5f*d, p)
+        stroke(canvas, Color.rgb(255, 95, 83), 0.8f, 7f, -2.3f, 12f, -1.7f)
+        stroke(canvas, Color.rgb(95, 16, 27), 0.8f, -14f, 0.2f, -10f, 1.2f)
+
+        // Helmeted rider leaning forward in a racing posture.
+        stroke(canvas, suit, 3.6f, -3f, -3f, 3f, -5f)
+        stroke(canvas, Color.rgb(73, 91, 111), 2.5f, -2f, -3.5f, 3f, -5f)
+        stroke(canvas, suit, 2.2f, 2f, -4.5f, 8f, -1.8f)
+        stroke(canvas, Color.rgb(190, 198, 205), 0.8f, 7f, -1.8f, 10f, -2.1f)
+        stroke(canvas, suit, 3f, -2f, -1.5f, 3f, 2.8f)
+        stroke(canvas, black, 3f, 2f, 1.2f, 7f, 4.4f)
+        stroke(canvas, black, 2.5f, -2f, 1f, -7f, 4.2f)
+
+        // Full-face helmet and dark visor, facing the direction of travel.
+        oval(canvas, Color.rgb(12, 17, 23), -0.3f, -10.5f, 6.8f, -3.6f)
+        p.color = Color.rgb(225, 232, 239)
+        canvas.drawArc(RectF(0.2f*d, -10.1f*d, 6.1f*d, -4f*d), 205f, 175f, false, p)
+        p.color = Color.rgb(27, 42, 57)
+        canvas.drawRoundRect(RectF(4f*d, -8.1f*d, 7f*d, -5.2f*d), 0.8f*d, 0.8f*d, p)
+        p.color = Color.WHITE
+        canvas.drawOval(RectF(0.5f*d, -9.8f*d, 2.4f*d, -9.1f*d), p)
+
+        canvas.restore()
+    }
+}
+
 private class KeyShapeDrawable(
     private val fillColor: Int,
     private val shape: String,
