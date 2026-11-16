@@ -1594,25 +1594,25 @@ private class MotorcycleOverlayView(context: Context) : View(context) {
         val eased = t*t*(3f-2f*t)
         val x: Float
         val y: Float
-        val angle: Float
+        val faceLeft: Boolean
         if (segment % 2 == 0) {
             x = width * (a.first + (b.first-a.first)*eased)
             y = height * (a.second + (b.second-a.second)*eased)
-            angle = if (b.first >= a.first) 0f else 180f
+            faceLeft = b.first < a.first
         } else {
             val cx = width * if (a.first > 0.5f) 0.885f else 0.115f
             val cy = height * ((a.second+b.second)/2f)
             val q = 1f-t
             x = q*q*width*a.first + 2f*q*t*cx + t*t*width*b.first
             y = q*q*height*a.second + 2f*q*t*cy + t*t*height*b.second
-            val dx = 2f*q*(cx-width*a.first) + 2f*t*(width*b.first-cx)
-            val dy = 2f*q*(cy-height*a.second) + 2f*t*(height*b.second-cy)
-            angle = Math.toDegrees(kotlin.math.atan2(dy.toDouble(), dx.toDouble())).toFloat()
+            // Saat pindah baris, motor tetap tegak. Cukup balik kiri-kanan,
+            // jangan memutar seluruh motor 90/180 derajat mengikuti kurva.
+            faceLeft = a.first > 0.5f
         }
 
         canvas.save()
         canvas.translate(x, y)
-        canvas.rotate(angle)
+        canvas.scale(if (faceLeft) -1f else 1f, 1f)
         val bob = kotlin.math.sin(elapsed / 180f).toFloat() * 0.45f * d
         canvas.translate(0f, bob)
 
