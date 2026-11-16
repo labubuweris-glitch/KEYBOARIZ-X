@@ -1595,24 +1595,31 @@ private class MotorcycleOverlayView(context: Context) : View(context) {
         val x: Float
         val y: Float
         val faceLeft: Boolean
+        val verticalAngle: Float
         if (segment % 2 == 0) {
             x = width * (a.first + (b.first-a.first)*eased)
             y = height * (a.second + (b.second-a.second)*eased)
             faceLeft = b.first < a.first
+            verticalAngle = 0f
         } else {
             val cx = width * if (a.first > 0.5f) 0.885f else 0.115f
             val cy = height * ((a.second+b.second)/2f)
             val q = 1f-t
             x = q*q*width*a.first + 2f*q*t*cx + t*t*width*b.first
             y = q*q*height*a.second + 2f*q*t*cy + t*t*height*b.second
-            // Saat pindah baris, motor tetap tegak. Cukup balik kiri-kanan,
-            // jangan memutar seluruh motor 90/180 derajat mengikuti kurva.
-            faceLeft = a.first > 0.5f
+            faceLeft = false
+            // Putar 90 derajat mengikuti arah perpindahan baris,
+            // tanpa rotasi 180 derajat yang membuat motor/pengendara terbalik.
+            verticalAngle = if (b.second >= a.second) 90f else -90f
         }
 
         canvas.save()
         canvas.translate(x, y)
-        canvas.scale(if (faceLeft) -1f else 1f, 1f)
+        if (verticalAngle != 0f) {
+            canvas.rotate(verticalAngle)
+        } else {
+            canvas.scale(if (faceLeft) -1f else 1f, 1f)
+        }
         val bob = kotlin.math.sin(elapsed / 180f).toFloat() * 0.45f * d
         canvas.translate(0f, bob)
 
