@@ -1574,7 +1574,7 @@ private class MustangOverlayView(context: Context, private val routeMode: String
         super.onDraw(canvas)
         if (width <= 0 || height <= 0) return
 
-        val elapsed = ((android.os.SystemClock.uptimeMillis() - start) * characterAnimationSpeed(context)).toLong()ed
+        val elapsed = ((android.os.SystemClock.uptimeMillis() - started) * characterAnimationSpeed(context)).toLong()
         val motion = calculateCharacterMotion(width, height, elapsed, routeMode)
         val x = motion.x
         val y = motion.y
@@ -1690,7 +1690,7 @@ private class MotorcycleOverlayView(context: Context, private val routeMode: Str
     override fun onDraw(canvas: Canvas) {
         super.onDraw(canvas)
         if (width <= 0 || height <= 0) return
-        val elapsed = ((android.os.SystemClock.uptimeMillis() - start) * characterAnimationSpeed(context)).toLong()ed
+        val elapsed = ((android.os.SystemClock.uptimeMillis() - started) * characterAnimationSpeed(context)).toLong()
         val motion = calculateCharacterMotion(width, height, elapsed, routeMode, 7200L)
         val x = motion.x
         val y = motion.y
@@ -1820,7 +1820,7 @@ private class ChickenOverlayView(context: Context, private val routeMode: String
     override fun onDraw(canvas: Canvas) {
         super.onDraw(canvas)
         if (width <= 0 || height <= 0) return
-        val elapsed = ((android.os.SystemClock.uptimeMillis() - start) * characterAnimationSpeed(context)).toLong()ed
+        val elapsed = ((android.os.SystemClock.uptimeMillis() - started) * characterAnimationSpeed(context)).toLong()
         val motion = calculateCharacterMotion(width, height, elapsed, routeMode)
         val x = motion.x
         val y = motion.y
