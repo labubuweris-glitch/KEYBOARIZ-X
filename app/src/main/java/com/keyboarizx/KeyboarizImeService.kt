@@ -447,8 +447,7 @@ class KeyboarizImeService : InputMethodService() {
                 clipboardMode = false
                 rizboardMode = true
                 customMode = false
-                setInputView(createKeyboardView())
-            }
+                setInputView(createKeyboardView())            }
             makeToolButton("CUSTOM", 1f, customBorder) {
                 clipboardMode = false
                 rizboardMode = false
@@ -897,8 +896,7 @@ class KeyboarizImeService : InputMethodService() {
             orientation = LinearLayout.HORIZONTAL
             setPadding(dp(4), dp(4), dp(4), dp(4))
             background = KeyShapeDrawable(
-                keyColor, keyShape, resources.displayMetrics.density,
-                borderColor = Color.rgb(69, 184, 232)
+                keyColor, keyShape, resources.displayMetrics.density,                borderColor = Color.rgb(69, 184, 232)
             )
         }
         lateinit var popup: PopupWindow
@@ -1164,7 +1162,7 @@ private class AntOverlayView(context: Context) : View(context) {
         super.onDraw(canvas)
         if (width <= 0 || height <= 0) return
 
-        // Gerak lambat dengan belokan melengkung, bukan sudut patah.
+        // Jalur zig-zag dan durasi dipertahankan seperti versi sebelumnya.
         val points = arrayOf(
             0.07f to 0.30f, 0.93f to 0.30f,
             0.93f to 0.47f, 0.07f to 0.47f,
@@ -1192,8 +1190,7 @@ private class AntOverlayView(context: Context) : View(context) {
             pathY = height * (from.second + (to.second - from.second) * eased)
             heading = if (to.first >= from.first) 0f else 180f
         } else {
-            val edgeInset = width * 0.045f
-            val controlX = width * (if (from.first > 0.5f) 0.93f - 0.045f else 0.07f + 0.045f)
+            val controlX = width * (if (from.first > 0.5f) 0.885f else 0.115f)
             val controlY = height * ((from.second + to.second) / 2f)
             val oneMinus = 1f - progress
             x = oneMinus * oneMinus * width * from.first +
@@ -1208,33 +1205,39 @@ private class AntOverlayView(context: Context) : View(context) {
                 2f * progress * (height * to.second - controlY)
             heading = Math.toDegrees(kotlin.math.atan2(dy.toDouble(), dx.toDouble())).toFloat()
         }
-        val walking = 1f
+
+        // Semut selalu tegak: kaki tetap menghadap ke bawah layar.
+        // Hanya arah kiri/kanan kepala yang dicerminkan; tubuh tidak diputar terbalik.
+        val horizontal = kotlin.math.cos(Math.toRadians(heading.toDouble())).toFloat()
+        val facing = if (kotlin.math.abs(horizontal) < 0.15f) {
+            if (from.first > 0.5f) -1f else 1f
+        } else if (horizontal >= 0f) 1f else -1f
 
         val antW = 29f * density
         val antH = 19f * density
         val phase = elapsed / 82f
-        val step = kotlin.math.sin(phase).toFloat() * walking
-        val bob = kotlin.math.abs(kotlin.math.sin(phase * 2f)).toFloat() * 0.8f * density * walking
+        val bob = kotlin.math.abs(kotlin.math.sin(phase * 2f)).toFloat() * 0.8f * density
         val y = pathY + bob
 
         canvas.save()
         canvas.translate(x, y)
-        canvas.rotate(heading + step * 0.7f)
+        canvas.scale(facing, 1f)
 
+        // Enam kaki berada di sisi bawah badan, tidak ikut terbalik saat berbelok.
         legPaint.color = Color.rgb(47, 29, 24)
         legPaint.strokeWidth = 1.35f * density
         val anchors = floatArrayOf(-0.13f, 0.00f, 0.14f)
         for (i in anchors.indices) {
-            val swing = kotlin.math.sin(phase + i * 2.1f).toFloat() * 3.2f * density * walking
+            val swing = kotlin.math.sin(phase + i * 2.1f).toFloat() * 2.5f * density
             val ax = anchors[i] * antW
-            val side = if (i % 2 == 0) 1f else -1f
             val hipY = 1.0f * density
-            canvas.drawLine(ax, hipY, ax - 3f * density + swing, hipY + side * 4.2f * density, legPaint)
-            canvas.drawLine(ax - 3f * density + swing, hipY + side * 4.2f * density,
-                ax - 5f * density + swing, hipY + side * 7f * density, legPaint)
-            canvas.drawLine(ax, hipY, ax + 3f * density - swing, hipY - side * 4.2f * density, legPaint)
-            canvas.drawLine(ax + 3f * density - swing, hipY - side * 4.2f * density,
-                ax + 5f * density - swing, hipY - side * 7f * density, legPaint)
+            val side = if (i % 2 == 0) -1f else 1f
+            canvas.drawLine(ax, hipY, ax - 3f * density + swing, hipY + 4.2f * density, legPaint)
+            canvas.drawLine(ax - 3f * density + swing, hipY + 4.2f * density,
+                ax - 5f * density + swing, hipY + 7f * density, legPaint)
+            canvas.drawLine(ax, hipY, ax + 3f * density - swing, hipY + 4.2f * density, legPaint)
+            canvas.drawLine(ax + 3f * density - swing, hipY + 4.2f * density,
+                ax + 5f * density - swing, hipY + 7f * density, legPaint)
         }
 
         detailPaint.color = Color.rgb(51, 32, 26)
