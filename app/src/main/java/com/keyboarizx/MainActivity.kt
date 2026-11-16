@@ -138,8 +138,16 @@ class MainActivity : Activity() {
             setPadding(dp(20), dp(4), dp(20), 0)
         }
         val fields = labels.mapIndexed { index, label ->
+            val heading = TextView(this).apply {
+                text = label
+                textSize = 13f
+                setTextColor(cyan)
+                typeface = Typeface.DEFAULT_BOLD
+                setPadding(0, dp(if (index == 0) 8 else 14), 0, dp(2))
+            }
+            form.addView(heading, LinearLayout.LayoutParams(-1, -2))
             val input = EditText(this).apply {
-                hint = if (index == 0) label else "$label  (#RRGGBB)"
+                hint = if (index == 0) "Masukkan nama tema" else "Kode warna HEX, contoh #00E5B0"
                 setSingleLine(true)
                 setText(values[index])
                 textSize = 14f
