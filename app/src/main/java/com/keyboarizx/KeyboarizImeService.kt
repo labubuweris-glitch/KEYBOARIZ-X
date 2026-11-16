@@ -1206,12 +1206,10 @@ private class AntOverlayView(context: Context) : View(context) {
             heading = Math.toDegrees(kotlin.math.atan2(dy.toDouble(), dx.toDouble())).toFloat()
         }
 
-        // Semut selalu tegak: kaki tetap menghadap ke bawah layar.
-        // Hanya arah kiri/kanan kepala yang dicerminkan; tubuh tidak diputar terbalik.
-        val horizontal = kotlin.math.cos(Math.toRadians(heading.toDouble())).toFloat()
-        val facing = if (kotlin.math.abs(horizontal) < 0.15f) {
-            if (from.first > 0.5f) -1f else 1f
-        } else if (horizontal >= 0f) 1f else -1f
+        // Orientasikan seluruh tubuh mengikuti arah lintasan.
+        // Saat bergerak ke kiri, balik sumbu kaki agar tetap menghadap permukaan keyboard.
+        // Pada jalur naik/turun, tubuh ikut berputar sehingga kepala memimpin arah gerak.
+        val headingNormalized = ((heading % 360f) + 360f) % 360f
 
         val antW = 29f * density
         val antH = 19f * density
@@ -1221,7 +1219,10 @@ private class AntOverlayView(context: Context) : View(context) {
 
         canvas.save()
         canvas.translate(x, y)
-        canvas.scale(facing, 1f)
+        canvas.rotate(headingNormalized)
+        if (headingNormalized > 90f && headingNormalized < 270f) {
+            canvas.scale(1f, -1f)
+        }
 
         // Enam kaki berada di sisi bawah badan, tidak ikut terbalik saat berbelok.
         legPaint.color = Color.rgb(47, 29, 24)
