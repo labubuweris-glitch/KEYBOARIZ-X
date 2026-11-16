@@ -41,6 +41,17 @@ class MainActivity : Activity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        // Migrasi satu kali agar instalasi lama juga memakai default RizColor tanpa karakter.
+        if (!prefs.getBoolean("rizcolor_default_applied", false)) {
+            prefs.edit()
+                .putString("palette", "RizColor")
+                .putInt("textColor", Color.parseColor("#F1C40F"))
+                .putInt("keyColor", Color.parseColor("#7F8C8D"))
+                .putInt("backgroundColor", Color.parseColor("#34495E"))
+                .putString("keyboard_character", "NONE")
+                .putBoolean("rizcolor_default_applied", true)
+                .apply()
+        }
         window.statusBarColor = dark
         window.navigationBarColor = dark
         window.decorView.setBackgroundColor(dark)
@@ -72,7 +83,7 @@ class MainActivity : Activity() {
 
         section(root, "TEMA DAN WARNA")
         root.addView(TextView(this).apply {
-            text = "18 tema siap pakai + pilihan warna buatan sendiri"
+            text = "19 tema siap pakai + pilihan warna buatan sendiri"
             textSize = 13f
             setTextColor(Color.LTGRAY)
         })
