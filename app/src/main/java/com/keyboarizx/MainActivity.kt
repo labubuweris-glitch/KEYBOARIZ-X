@@ -298,6 +298,27 @@ class MainActivity : Activity() {
             }
         }
 
+        section(root, "KECEPATAN ANIMASI")
+        root.addView(TextView(this).apply {
+            text = "Atur kecepatan gerak semua karakter animasi."
+            textSize = 13f
+            setTextColor(Color.LTGRAY)
+        })
+        val speedNames = listOf("Lambat", "Sedang (bawaan)", "Cepat")
+        val speedValues = listOf("SLOW", "NORMAL", "FAST")
+        val speedSpinner = Spinner(this).apply {
+            adapter = ArrayAdapter(this@MainActivity, android.R.layout.simple_spinner_dropdown_item, speedNames)
+            setSelection(speedValues.indexOf(prefs.getString("keyboard_animation_speed", "NORMAL")).coerceAtLeast(0))
+        }
+        root.addView(speedSpinner, LinearLayout.LayoutParams(-1, dp(52)))
+        speedSpinner.onItemSelectedListener = object : android.widget.AdapterView.OnItemSelectedListener {
+            override fun onNothingSelected(parent: android.widget.AdapterView<*>?) {}
+            override fun onItemSelected(parent: android.widget.AdapterView<*>?, view: android.view.View?, position: Int, id: Long) {
+                prefs.edit().putString("keyboard_animation_speed", speedValues[position]).apply()
+                Toast.makeText(this@MainActivity, "Kecepatan animasi disimpan. Buka ulang keyboard untuk menerapkan.", Toast.LENGTH_SHORT).show()
+            }
+        }
+
         section(root, "WARNA KARAKTER")
         root.addView(TextView(this).apply {
             text = "Atur warna tampilan semua karakter animasi. Original mempertahankan warna asli setiap karakter."
