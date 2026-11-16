@@ -196,6 +196,7 @@ class KeyboarizImeService : InputMethodService() {
             root.addView(scroll, LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT, dp(208)
             ))
+            attachCharacterOverlay(root)
             return root
         }
 
@@ -429,6 +430,7 @@ class KeyboarizImeService : InputMethodService() {
             root.addView(scrollView, LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT, dp(166)
             ))
+            attachCharacterOverlay(root)
             return root
         }
 
@@ -736,19 +738,21 @@ class KeyboarizImeService : InputMethodService() {
             addRow(listOf("?123", ",", "SPACE", ".", "↵"),
                 listOf(1.4f,0.8f,3.8f,0.8f,1.4f))
         }
-        // Tampilkan karakter pilihan pada overlay transparan tanpa mengubah ukuran keyboard.
-        if (!numberMode) {
-            when (prefs.getString("keyboard_character", "NONE")) {
-                "ANT" -> withAntOverlay(root)
-                "DRAGONFLY" -> withDragonflyOverlay(root)
-                "MUSTANG" -> withMustangOverlay(root)
-                "MOTORCYCLE" -> withMotorcycleOverlay(root)
-                "CHICKEN" -> withChickenOverlay(root)
-                "NONE" -> Unit
-                else -> Unit
-            }
-        }
+        // Semua animasi karakter tampil di setiap halaman dan mode keyboard.
+        attachCharacterOverlay(root)
         return root
+    }
+
+    private fun attachCharacterOverlay(keyboard: ViewGroup) {
+        when (prefs.getString("keyboard_character", "NONE")) {
+            "ANT" -> withAntOverlay(keyboard)
+            "DRAGONFLY" -> withDragonflyOverlay(keyboard)
+            "MUSTANG" -> withMustangOverlay(keyboard)
+            "MOTORCYCLE" -> withMotorcycleOverlay(keyboard)
+            "CHICKEN" -> withChickenOverlay(keyboard)
+            "NONE" -> Unit
+            else -> Unit
+        }
     }
 
     private fun withDragonflyOverlay(keyboard: View) {
