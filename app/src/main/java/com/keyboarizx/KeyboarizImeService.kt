@@ -1245,10 +1245,10 @@ class KeyboarizImeService : InputMethodService() {
  * No image/GIF assets are used and keyboard measurement remains unchanged.
  */
 
-private data class CharacterMotion(val x: Float, val y: Float, val angle: Float)
+private data class CharacterMotion(val x: Float, val y: Float, val angle: Float, val verticalSegment: Boolean = false)
 
 /** Menghitung posisi dan arah semua karakter berdasarkan jalur yang dipilih. */
-private fun calculateCharacterMotion(width: Int, height: Int, elapsed: Long, routeMode: String): CharacterMotion {
+private fun calculateCharacterMotion(width: Int, height: Int, elapsed: Long, routeMode: String, zigzagHorizontalDuration: Long = 6200L): CharacterMotion {
     val w = width.toFloat()
     val h = height.toFloat()
     fun wrap(value: Float): Float = ((value % 1f) + 1f) % 1f
@@ -1304,7 +1304,7 @@ private fun calculateCharacterMotion(width: Int, height: Int, elapsed: Long, rou
                 0.07f to 0.68f, 0.93f to 0.68f,
                 0.93f to 0.87f, 0.07f to 0.87f
             )
-            val durations = longArrayOf(6200L, 1900L, 6200L, 1900L, 6200L, 1900L, 6200L, 2200L)
+            val durations = longArrayOf(zigzagHorizontalDuration, 1900L, zigzagHorizontalDuration, 1900L, zigzagHorizontalDuration, 1900L, zigzagHorizontalDuration, 2200L)
             val cycle = durations.sum()
             var remaining = elapsed % cycle
             var segment = 0
@@ -1328,7 +1328,7 @@ private fun calculateCharacterMotion(width: Int, height: Int, elapsed: Long, rou
             val y = q*q*from.second + 2f*q*t*controlY + t*t*to.second
             val dx = 2f*q*(controlX-from.first) + 2f*t*(to.first-controlX)
             val dy = 2f*q*(controlY-from.second) + 2f*t*(to.second-controlY)
-            return CharacterMotion(w * x, h * y, angle(dx, dy))
+            return CharacterMotion(w * x, h * y, angle(dx, dy), verticalSegment = true)
         }
     }
 }
@@ -1666,12 +1666,13 @@ private class MotorcycleOverlayView(context: Context, private val routeMode: Str
         super.onDraw(canvas)
         if (width <= 0 || height <= 0) return
         val elapsed = android.os.SystemClock.uptimeMillis() - started
-        val motion = calculateCharacterMotion(width, height, elapsed, routeMode)
+        val motion = calculateCharacterMotion(width, height, elapsed, routeMode, 7200L)
         val x = motion.x
         val y = motion.y
         val movingLeft = kotlin.math.cos(Math.toRadians(motion.angle.toDouble())) < 0.0
-        val movingVertical = kotlin.math.abs(kotlin.math.sin(Math.toRadians(motion.angle.toDouble()))) >
-            kotlin.math.abs(kotlin.math.cos(Math.toRadians(motion.angle.toDouble())))
+        val movingVertical = if (routeMode == "ZIGZAG") motion.verticalSegment else
+            kotlin.math.abs(kotlin.math.sin(Math.toRadians(motion.angle.toDouble()))) >
+                kotlin.math.abs(kotlin.math.cos(Math.toRadians(motion.angle.toDouble())))
         val faceLeft = movingLeft
         val verticalAngle = if (movingVertical) {
             if (kotlin.math.sin(Math.toRadians(motion.angle.toDouble())) >= 0.0) 90f else -90f
