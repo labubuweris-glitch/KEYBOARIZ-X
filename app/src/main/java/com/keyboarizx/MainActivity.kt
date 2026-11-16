@@ -18,6 +18,7 @@ class MainActivity : Activity() {
     private val cyan = Color.rgb(0, 207, 255)
     private val dark = Color.rgb(8, 13, 20)
     private val palettes = listOf(
+        Palette("RizColor", Color.parseColor("#F1C40F"), Color.parseColor("#7F8C8D"), Color.parseColor("#34495E")),
         Palette("Hitam Cyan", Color.WHITE, Color.rgb(37, 55, 70), Color.rgb(17, 28, 39)),
         Palette("Hitam Merah", Color.WHITE, Color.rgb(91, 35, 42), Color.rgb(28, 14, 18)),
         Palette("Hitam Ungu", Color.WHITE, Color.rgb(75, 48, 103), Color.rgb(25, 17, 35)),
@@ -80,7 +81,7 @@ class MainActivity : Activity() {
         val customIndex = palettes.size
         val spinner = Spinner(this).apply {
             adapter = ArrayAdapter(this@MainActivity, android.R.layout.simple_spinner_dropdown_item, themeNames)
-            setSelection(themeNames.indexOf(prefs.getString("palette", "Hitam Cyan")).coerceAtLeast(0))
+            setSelection(themeNames.indexOf(prefs.getString("palette", "RizColor")).coerceAtLeast(0))
         }
         root.addView(spinner, LinearLayout.LayoutParams(-1, dp(52)))
 
@@ -194,11 +195,11 @@ class MainActivity : Activity() {
             textSize = 13f
             setTextColor(Color.LTGRAY)
         })
-        val characterNames = listOf("Semut", "Capung (tampak atas)", "Mustang (tampak atas)", "Motor sport + pengendara (samping)", "Ayam berjalan (samping)")
-        val characterValues = listOf("ANT", "DRAGONFLY", "MUSTANG", "MOTORCYCLE", "CHICKEN")
+        val characterNames = listOf("Tanpa karakter", "Semut", "Capung (tampak atas)", "Mustang (tampak atas)", "Motor sport + pengendara (samping)", "Ayam berjalan (samping)")
+        val characterValues = listOf("NONE", "ANT", "DRAGONFLY", "MUSTANG", "MOTORCYCLE", "CHICKEN")
         val characterSpinner = Spinner(this).apply {
             adapter = ArrayAdapter(this@MainActivity, android.R.layout.simple_spinner_dropdown_item, characterNames)
-            setSelection(characterValues.indexOf(prefs.getString("keyboard_character", "ANT")).coerceAtLeast(0))
+            setSelection(characterValues.indexOf(prefs.getString("keyboard_character", "NONE")).coerceAtLeast(0))
         }
         root.addView(characterSpinner, LinearLayout.LayoutParams(-1, dp(52)))
         characterSpinner.onItemSelectedListener = object : android.widget.AdapterView.OnItemSelectedListener {
