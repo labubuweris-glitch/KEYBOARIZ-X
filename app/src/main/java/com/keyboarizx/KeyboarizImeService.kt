@@ -1377,7 +1377,8 @@ private class AntOverlayView(context: Context, private val routeMode: String) : 
         super.onDraw(canvas)
         if (width <= 0 || height <= 0) return
 
-        val motion = calculateCharacterMotion(width, height, android.os.SystemClock.uptimeMillis() - startedAt, routeMode)
+        val elapsed = android.os.SystemClock.uptimeMillis() - startedAt
+        val motion = calculateCharacterMotion(width, height, elapsed, routeMode)
         val x = motion.x
         val pathY = motion.y
         val heading = motion.angle
@@ -1464,11 +1465,12 @@ private class DragonflyOverlayView(context: Context, private val routeMode: Stri
     override fun onDetachedFromWindow() { removeCallbacks(frame); super.onDetachedFromWindow() }
     override fun onDraw(canvas: Canvas) {
         super.onDraw(canvas); if (width <= 0 || height <= 0) return
-        val motion = calculateCharacterMotion(width, height, android.os.SystemClock.uptimeMillis() - start, routeMode)
+        val elapsed = android.os.SystemClock.uptimeMillis() - start
+        val motion = calculateCharacterMotion(width, height, elapsed, routeMode)
         val x = motion.x
         val y = motion.y
         val angle = motion.angle
-kotlin.math.sin(elapsed/95f*2f).toFloat()*2.2f*d
+        val flap = kotlin.math.sin(elapsed / 95f * 2f).toFloat() * 2.2f * d
         // Keep the dorsal side facing the viewer; mirror horizontally rather than rolling upside down.
         val mirrorX = angle > 90f || angle < -90f
         val uprightAngle = when {
@@ -1547,7 +1549,8 @@ private class MustangOverlayView(context: Context, private val routeMode: String
         super.onDraw(canvas)
         if (width <= 0 || height <= 0) return
 
-        val motion = calculateCharacterMotion(width, height, android.os.SystemClock.uptimeMillis() - started, routeMode)
+        val elapsed = android.os.SystemClock.uptimeMillis() - started
+        val motion = calculateCharacterMotion(width, height, elapsed, routeMode)
         val x = motion.x
         val y = motion.y
         val angle = motion.angle
@@ -1662,7 +1665,8 @@ private class MotorcycleOverlayView(context: Context, private val routeMode: Str
     override fun onDraw(canvas: Canvas) {
         super.onDraw(canvas)
         if (width <= 0 || height <= 0) return
-        val motion = calculateCharacterMotion(width, height, android.os.SystemClock.uptimeMillis() - started, routeMode)
+        val elapsed = android.os.SystemClock.uptimeMillis() - started
+        val motion = calculateCharacterMotion(width, height, elapsed, routeMode)
         val x = motion.x
         val y = motion.y
         val movingLeft = kotlin.math.cos(Math.toRadians(motion.angle.toDouble())) < 0.0
@@ -1790,7 +1794,8 @@ private class ChickenOverlayView(context: Context, private val routeMode: String
     override fun onDraw(canvas: Canvas) {
         super.onDraw(canvas)
         if (width <= 0 || height <= 0) return
-        val motion = calculateCharacterMotion(width, height, android.os.SystemClock.uptimeMillis() - started, routeMode)
+        val elapsed = android.os.SystemClock.uptimeMillis() - started
+        val motion = calculateCharacterMotion(width, height, elapsed, routeMode)
         val x = motion.x
         val y = motion.y
         val movingLeft = kotlin.math.cos(Math.toRadians(motion.angle.toDouble())) < 0.0
@@ -1801,6 +1806,7 @@ private class ChickenOverlayView(context: Context, private val routeMode: String
             if (kotlin.math.sin(Math.toRadians(motion.angle.toDouble())) >= 0.0) 90f else -90f
         } else 0f
 
+        val phase = elapsed / 115f
         val step=kotlin.math.sin(phase).toFloat()
         val bob=kotlin.math.abs(kotlin.math.sin(phase*2f)).toFloat()*0.65f*d
         canvas.save(); canvas.translate(x,y+bob)
