@@ -237,17 +237,7 @@ class MainActivity : Activity() {
         })
         addAction(root, "Kelola Tema Warna") { showThemeManager() }
 
-        section(root, "BENTUK TOMBOL")
-        prefs.edit().putString("keyShape", "PLUSH").apply()
-        root.addView(TextView(this).apply {
-            text = "PLUSH 3D (BULU)\nSemua tombol menggunakan satu bentuk Plush 3D. Bentuk lain sudah dihapus."
-            textSize = 13f
-            setTextColor(Color.LTGRAY)
-            setPadding(0, dp(6), 0, dp(8))
-        })
-
-
-        section(root, "KARAKTER ANIMASI")
+        // Semua tombol kini memakai satu renderer Plush 3D.\n\n        section(root, "KARAKTER ANIMASI")
         root.addView(TextView(this).apply {
             text = "Pilih karakter yang bergerak di atas tombol keyboard."
             textSize = 13f
