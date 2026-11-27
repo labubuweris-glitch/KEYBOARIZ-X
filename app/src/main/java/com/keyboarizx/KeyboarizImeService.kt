@@ -164,7 +164,7 @@ class KeyboarizImeService : InputMethodService() {
                     toolFill, keyShape, resources.displayMetrics.density,
                     borderColor = if (rizTema3) tabColor else borderColor,
                     outlineOnly = rizTema3,
-                    boatLine = rizTema3 && mainTab,
+                    boatLine = rizTema3 && (mainTab || label == "1+2"),
                     inverted = rizTema3 && (label == "RIZBOARD" || label == "1+2")
                 )
                 typeface = Typeface.DEFAULT_BOLD
@@ -584,11 +584,10 @@ class KeyboarizImeService : InputMethodService() {
                         plushFill,
                         keyShape,
                         resources.displayMetrics.density,
-                        invertedLoveRow,
-                        if (rizTema2 || rizTema3) borderColor else if (plushMode) null else borderColor,
+                        inverted = if (rizTema3) label in listOf("↵", "BARIS_BARU", "1+2") else invertedLoveRow,
+                        borderColor = if (rizTema2 || rizTema3) borderColor else if (plushMode) null else borderColor,
                         outlineOnly = rizTema3,
-                        boatLine = rizTema3 && label in listOf("SPACE", "SPACE_ICON", "↵", "BARIS_BARU", "1+2"),
-                        inverted = rizTema3 && label in listOf("↵", "BARIS_BARU", "1+2")
+                        boatLine = rizTema3 && label in listOf("SPACE", "SPACE_ICON", "↵", "BARIS_BARU", "1+2")
                     )
                     typeface = Typeface.DEFAULT
                     isAllCaps = false
