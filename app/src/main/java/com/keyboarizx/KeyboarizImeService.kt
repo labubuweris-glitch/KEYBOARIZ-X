@@ -345,7 +345,7 @@ class KeyboarizImeService : InputMethodService() {
                             textSize = 14f
                             gravity = Gravity.START or Gravity.CENTER_VERTICAL
                             setTextColor(textColor)
-                            setBackgroundColor(keyColor)
+                            background = KeyShapeDrawable(keyColor, keyShape, resources.displayMetrics.density)
                             isAllCaps = false
                             setOnClickListener {
                                 addPinnedItem(itemToPin, name)
@@ -362,7 +362,7 @@ class KeyboarizImeService : InputMethodService() {
                     val cancel = Button(this).apply {
                         text = "BATAL"
                         setTextColor(textColor)
-                        setBackgroundColor(keyColor)
+                        background = KeyShapeDrawable(keyColor, keyShape, resources.displayMetrics.density)
                         setOnClickListener {
                             pendingPinItem = null
                             pendingMoveFromCategory = null
@@ -383,7 +383,7 @@ class KeyboarizImeService : InputMethodService() {
                                 textSize = 14f
                                 gravity = Gravity.START or Gravity.CENTER_VERTICAL
                                 setTextColor(textColor)
-                                setBackgroundColor(keyColor)
+                                background = KeyShapeDrawable(keyColor, keyShape, resources.displayMetrics.density)
                                 isAllCaps = false
                                 minWidth = 0
                                 minimumWidth = 0
@@ -410,7 +410,7 @@ class KeyboarizImeService : InputMethodService() {
                         text = "‹  KATEGORI"
                         textSize = 13f
                         setTextColor(textColor)
-                        setBackgroundColor(keyColor)
+                        background = KeyShapeDrawable(keyColor, keyShape, resources.displayMetrics.density)
                         isAllCaps = false
                         setOnClickListener {
                             selectedPinCategory = null
