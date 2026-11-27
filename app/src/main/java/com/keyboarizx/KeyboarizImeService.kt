@@ -767,6 +767,7 @@ class KeyboarizImeService : InputMethodService() {
         when (prefs.getString("keyboard_character", "NONE")) {
             "ANT" -> withAntOverlay(keyboard)
             "DRAGONFLY" -> withDragonflyOverlay(keyboard)
+            "EAGLE" -> withEagleOverlay(keyboard)
             "MUSTANG" -> withMustangOverlay(keyboard)
             "MOTORCYCLE" -> withMotorcycleOverlay(keyboard)
             "CHICKEN" -> withChickenOverlay(keyboard)
@@ -784,6 +785,21 @@ class KeyboarizImeService : InputMethodService() {
             if (w <= 0 || h <= 0) return
             view.measure(View.MeasureSpec.makeMeasureSpec(w, View.MeasureSpec.EXACTLY), View.MeasureSpec.makeMeasureSpec(h, View.MeasureSpec.EXACTLY))
             view.layout(0, 0, w, h)
+        }
+        group.addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ -> fit() }
+        group.post { fit() }
+    }
+
+
+    private fun withEagleOverlay(keyboard: View) {
+        val group = keyboard as? ViewGroup ?: return
+        val eagle = EagleOverlayView(this, currentAnimationRoute(), animationStartedAt)
+        group.overlay.add(eagle)
+        fun fit() {
+            val w = group.width; val h = group.height
+            if (w <= 0 || h <= 0) return
+            eagle.measure(View.MeasureSpec.makeMeasureSpec(w, View.MeasureSpec.EXACTLY), View.MeasureSpec.makeMeasureSpec(h, View.MeasureSpec.EXACTLY))
+            eagle.layout(0, 0, w, h)
         }
         group.addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ -> fit() }
         group.post { fit() }
@@ -1544,6 +1560,113 @@ private class DragonflyOverlayView(context: Context, private val routeMode: Stri
         fill.color=Color.rgb(205,245,245)
         canvas.drawCircle(7.9f*d,-3.0f*d,0.65f*d,fill)
         canvas.drawCircle(7.9f*d,2.0f*d,0.65f*d,fill)
+        canvas.restore()
+    }
+}
+
+
+/** Elang tampak atas dengan kepakan sayap lebar, bergerak pada jalur karakter yang sama. */
+private class EagleOverlayView(context: Context, private val routeMode: String, private val animationStartedAt: Long) : View(context) {
+    private val d = resources.displayMetrics.density
+    private val feather = Paint(Paint.ANTI_ALIAS_FLAG)
+    private val detail = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.STROKE; strokeCap = Paint.Cap.ROUND; strokeJoin = Paint.Join.ROUND }
+    private val frame = object : Runnable {
+        override fun run() { if (!isAttachedToWindow) return; invalidate(); postDelayed(this, 34L) }
+    }
+    init {
+        isClickable = false
+        isFocusable = false
+        importantForAccessibility = IMPORTANT_FOR_ACCESSIBILITY_NO
+        setWillNotDraw(false)
+        applyCharacterColor(this, context)
+    }
+    override fun onAttachedToWindow() { super.onAttachedToWindow(); removeCallbacks(frame); post(frame) }
+    override fun onDetachedFromWindow() { removeCallbacks(frame); super.onDetachedFromWindow() }
+
+    private fun drawWing(canvas: Canvas, side: Float, flap: Float) {
+        canvas.save()
+        canvas.scale(1f, side)
+        canvas.rotate(flap, -1f*d, 0f)
+        val wing = Path().apply {
+            moveTo(-2f*d, -1.5f*d)
+            quadTo(-12f*d, -8f*d, -30f*d, -24f*d)
+            quadTo(-28f*d, -10f*d, -25f*d, -3f*d)
+            quadTo(-20f*d, 5f*d, -3f*d, 5f*d)
+            close()
+        }
+        feather.color = Color.rgb(75, 43, 31)
+        canvas.drawPath(wing, feather)
+        // Bulu primer berlapis di tepi luar sayap.
+        for (i in 0..6) {
+            val x = (-8f - i*3.0f)*d
+            val y = (-5f - i*2.4f)*d
+            val f = Path().apply {
+                moveTo(x, y)
+                quadTo(x-5f*d, y-2f*d, x-7f*d, y-7f*d)
+                quadTo(x-2f*d, y-5f*d, x+1f*d, y+1f*d)
+                close()
+            }
+            feather.color = if (i % 2 == 0) Color.rgb(48, 34, 31) else Color.rgb(96, 57, 39)
+            canvas.drawPath(f, feather)
+        }
+        // Lapisan bulu cokelat pada bagian dalam sayap.
+        for (i in 0..4) {
+            val x = (-5f - i*3.2f)*d
+            val y = (-2f - i*1.15f)*d
+            feather.color = if (i % 2 == 0) Color.rgb(133, 78, 49) else Color.rgb(110, 62, 41)
+            canvas.drawOval(android.graphics.RectF(x-3f*d, y-2f*d, x+3f*d, y+2f*d), feather)
+        }
+        detail.color = Color.argb(170, 30, 22, 20)
+        detail.strokeWidth = 0.55f*d
+        canvas.drawPath(wing, detail)
+        canvas.restore()
+    }
+
+    override fun onDraw(canvas: Canvas) {
+        super.onDraw(canvas)
+        if (width <= 0 || height <= 0) return
+        val elapsed = ((android.os.SystemClock.uptimeMillis() - animationStartedAt) * characterAnimationSpeed(context)).toLong()
+        val motion = calculateCharacterMotion(width, height, elapsed, routeMode)
+        val angle = motion.angle
+        val mirrorX = angle > 90f || angle < -90f
+        val uprightAngle = when {
+            angle > 90f -> angle - 180f
+            angle < -90f -> angle + 180f
+            else -> angle
+        }
+        val flap = kotlin.math.sin(elapsed / 230f).toFloat() * 23f
+        canvas.save()
+        canvas.translate(motion.x, motion.y)
+        canvas.rotate(uprightAngle)
+        if (mirrorX) canvas.scale(-1f, 1f)
+
+        // Sayap kiri-kanan mengepak dari bahu; tubuh dan kepala tetap stabil.
+        drawWing(canvas, -1f, -flap)
+        drawWing(canvas, 1f, flap)
+
+        // Ekor putih kipas.
+        feather.color = Color.rgb(232, 226, 211)
+        val tail = Path().apply {
+            moveTo(-16f*d, -2f*d); quadTo(-25f*d, 0f, -22f*d, 7f*d)
+            quadTo(-17f*d, 10f*d, -12f*d, 4f*d); close()
+        }
+        canvas.drawPath(tail, feather)
+        feather.color = Color.rgb(190, 184, 172)
+        for (i in 0..3) canvas.drawLine((-15f-i*1.2f)*d, 1f*d, (-21f+i*1.1f)*d, 5f*d, detail)
+
+        // Badan cokelat, tengkuk putih, dan kepala elang menghadap ke depan.
+        feather.color = Color.rgb(82, 48, 35)
+        canvas.drawOval(android.graphics.RectF(-15f*d, -5.2f*d, 9f*d, 5.2f*d), feather)
+        feather.color = Color.rgb(245, 240, 226)
+        canvas.drawOval(android.graphics.RectF(2f*d, -4.2f*d, 12f*d, 4.2f*d), feather)
+        feather.color = Color.rgb(255, 255, 247)
+        canvas.drawCircle(10f*d, 0f, 4.2f*d, feather)
+        feather.color = Color.rgb(239, 174, 35)
+        val beak = Path().apply { moveTo(13f*d, -1.7f*d); lineTo(19f*d, 0f); lineTo(13f*d, 1.7f*d); close() }
+        canvas.drawPath(beak, feather)
+        feather.color = Color.rgb(25, 22, 20)
+        canvas.drawCircle(10.8f*d, -1.4f*d, 0.65f*d, feather)
+        canvas.drawCircle(10.8f*d, 1.4f*d, 0.65f*d, feather)
         canvas.restore()
     }
 }
