@@ -84,15 +84,16 @@ class KeyboarizImeService : InputMethodService() {
     override fun onCreateInputView(): View = createKeyboardView()
 
     private fun createKeyboardView(): View {
-        val textColor = prefs.getInt("textColor", Color.parseColor("#F1C40F"))
-        val keyColor = prefs.getInt("keyColor", Color.BLACK)
-        val backgroundColor = prefs.getInt("backgroundColor", Color.BLACK)
+        val rizTema2 = prefs.getString("selected_keyboard_theme", "Default") == "Riz Tema 2"
+        val textColor = if (rizTema2) Color.parseColor("#252525") else prefs.getInt("textColor", Color.parseColor("#F1C40F"))
+        val keyColor = if (rizTema2) Color.parseColor("#D8D6CF") else prefs.getInt("keyColor", Color.BLACK)
+        val backgroundColor = if (rizTema2) Color.parseColor("#050505") else prefs.getInt("backgroundColor", Color.BLACK)
         val keyShape = "PLUSH"
 
-        // Tiga warna garis yang dapat disimpan terpisah pada setiap tema.
-        val shortcutBorder = prefs.getInt("shortcutBorderColor", Color.parseColor("#39C6E8"))
-        val characterBorder = prefs.getInt("characterBorderColor", Color.parseColor("#45B8E8"))
-        val functionBorder = prefs.getInt("functionBorderColor", Color.parseColor("#5BCD97"))
+        // Garis aksen khusus Riz Tema 2 diterapkan konsisten di seluruh halaman.
+        val shortcutBorder = if (rizTema2) Color.parseColor("#E85D75") else prefs.getInt("shortcutBorderColor", Color.parseColor("#39C6E8"))
+        val characterBorder = if (rizTema2) Color.parseColor("#42BCEB") else prefs.getInt("characterBorderColor", Color.parseColor("#45B8E8"))
+        val functionBorder = if (rizTema2) Color.parseColor("#A78BFA") else prefs.getInt("functionBorderColor", Color.parseColor("#5BCD97"))
 
         // Aksen dibuat dari warna tombol + warna tulisan agar selalu selaras dengan tema aktif.
         val accentColor = blendThemeColors(keyColor, textColor, 0.28f)
@@ -113,8 +114,10 @@ class KeyboarizImeService : InputMethodService() {
             val button = Button(this).apply {
                 text = label
                 textSize = 13f
-                setTextColor(textColor)
-                background = KeyShapeDrawable(keyColor, keyShape, resources.displayMetrics.density, borderColor = borderColor)
+                val mainTab = label.contains("CLIPBOARD", true) || label == "RIZBOARD" || label == "CUSTOM"
+                val toolFill = if (rizTema2 && mainTab) Color.BLACK else if (rizTema2) Color.rgb(43, 45, 51) else keyColor
+                setTextColor(if (rizTema2) borderColor else textColor)
+                background = KeyShapeDrawable(toolFill, keyShape, resources.displayMetrics.density, borderColor = if (rizTema2) borderColor else borderColor)
                 typeface = Typeface.DEFAULT_BOLD
                 isAllCaps = false
                 minWidth = 0
@@ -221,9 +224,9 @@ class KeyboarizImeService : InputMethodService() {
                     isAllCaps = false
                     minWidth = 0
                     minimumWidth = 0
-                    setTextColor(if (clipboardPage == page) accentTextColor else textColor)
+                    setTextColor(if (rizTema2) shortcutBorder else if (clipboardPage == page) accentTextColor else textColor)
                     background = KeyShapeDrawable(
-                        if (clipboardPage == page) accentColor else keyColor,
+                        if (rizTema2) Color.BLACK else if (clipboardPage == page) accentColor else keyColor,
                         keyShape, resources.displayMetrics.density, borderColor = shortcutBorder
                     )
                     setOnClickListener {
@@ -505,23 +508,29 @@ class KeyboarizImeService : InputMethodService() {
                     val plushMode = keyShape == "PLUSH"
                     val plushFunction = label in listOf("⇧", "⌫", "↵", "?123", "ABC", "1+2", "=\\<")
                     val plushOrange = label in listOf("Q", "T", "O", "A", "H") || isAccent || label == "SPACE"
+                    val rizFunction = label in listOf("SPACE", "SPACE_ICON", "⇧", "⌫", "↵", "BARIS_BARU", "?123", "ABC", "1+2", "=\\<", ",", ".", "⚙")
                     val plushFill = when {
+                        rizTema2 && rizFunction -> Color.rgb(43, 45, 51)
                         plushMode && plushFunction -> Color.rgb(38, 32, 34)
                         plushMode && plushOrange -> Color.rgb(222, 105, 35)
                         plushMode -> Color.rgb(246, 229, 207)
                         isAccent -> accentColor
                         else -> keyColor
                     }
-                    val plushText = if (plushMode) {
-                        if (plushFunction) Color.WHITE else Color.rgb(65, 34, 27)
-                    } else if (isAccent) accentTextColor else textColor
+                    val plushText = when {
+                        rizTema2 && rizFunction -> functionBorder
+                        plushMode && plushFunction -> Color.WHITE
+                        plushMode -> Color.rgb(65, 34, 27)
+                        isAccent -> accentTextColor
+                        else -> textColor
+                    }
                     setTextColor(plushText)
                     background = KeyShapeDrawable(
                         plushFill,
                         keyShape,
                         resources.displayMetrics.density,
                         invertedLoveRow,
-                        if (plushMode) null else borderColor
+                        if (rizTema2) borderColor else if (plushMode) null else borderColor
                     )
                     typeface = Typeface.DEFAULT
                     isAllCaps = false
@@ -2064,6 +2073,13 @@ private class KeyShapeDrawable(
         paint.color = Color.argb(115, 255, 255, 255)
         val highlight = RectF(face).apply { inset(1.2f * density, 1.2f * density) }
         canvas.drawArc(highlight, 190f, 145f, false, paint)
+        if (borderColor != null) {
+            paint.shader = null
+            paint.style = Paint.Style.STROKE
+            paint.strokeWidth = 1.35f * density
+            paint.color = borderColor
+            canvas.drawRoundRect(face, radius, radius, paint)
+        }
         paint.style = Paint.Style.FILL
         paint.shader = null
     }
