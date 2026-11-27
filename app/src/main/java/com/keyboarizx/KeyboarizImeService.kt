@@ -511,6 +511,7 @@ class KeyboarizImeService : InputMethodService() {
                     val rizFunction = label in listOf("SPACE", "SPACE_ICON", "⇧", "⌫", "↵", "BARIS_BARU", "?123", "ABC", "1+2", "=\\<", ",", ".", "⚙")
                     val plushFill = when {
                         rizTema2 && rizFunction -> Color.rgb(43, 45, 51)
+                        rizTema2 -> keyColor
                         plushMode && plushFunction -> Color.rgb(38, 32, 34)
                         plushMode && plushOrange -> Color.rgb(222, 105, 35)
                         plushMode -> Color.rgb(246, 229, 207)
@@ -519,6 +520,7 @@ class KeyboarizImeService : InputMethodService() {
                     }
                     val plushText = when {
                         rizTema2 && rizFunction -> functionBorder
+                        rizTema2 -> textColor
                         plushMode && plushFunction -> Color.WHITE
                         plushMode -> Color.rgb(65, 34, 27)
                         isAccent -> accentTextColor
