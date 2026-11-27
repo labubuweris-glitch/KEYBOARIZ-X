@@ -500,13 +500,26 @@ class KeyboarizImeService : InputMethodService() {
                         else -> 18f
                     }
                     val isAccent = (label == "⇧" && shiftState > 0) || label == "↵" || label == "BARIS_BARU"
-                    setTextColor(if (isAccent) accentTextColor else textColor)
+                    val plushMode = keyShape == "PLUSH"
+                    val plushFunction = label in listOf("⇧", "⌫", "↵", "?123", "ABC", "1+2", "=\\<")
+                    val plushOrange = label in listOf("Q", "T", "O", "A", "H") || isAccent || label == "SPACE"
+                    val plushFill = when {
+                        plushMode && plushFunction -> Color.rgb(38, 32, 34)
+                        plushMode && plushOrange -> Color.rgb(222, 105, 35)
+                        plushMode -> Color.rgb(246, 229, 207)
+                        isAccent -> accentColor
+                        else -> keyColor
+                    }
+                    val plushText = if (plushMode) {
+                        if (plushFunction) Color.WHITE else Color.rgb(65, 34, 27)
+                    } else if (isAccent) accentTextColor else textColor
+                    setTextColor(plushText)
                     background = KeyShapeDrawable(
-                        if (isAccent) accentColor else keyColor,
+                        plushFill,
                         keyShape,
                         resources.displayMetrics.density,
                         invertedLoveRow,
-                        borderColor
+                        if (plushMode) null else borderColor
                     )
                     typeface = Typeface.DEFAULT
                     isAllCaps = false
@@ -1906,7 +1919,55 @@ private class KeyShapeDrawable(
             "SOFT_SQUARE" -> 9f * density
             "ROUNDED" -> 6f * density
             "DOUBLE_BORDER" -> 7f * density
+            "PLUSH" -> 13f * density
             else -> 3f * density
+        }
+
+        if (shape == "PLUSH") {
+            val shadow = RectF(rect).apply { offset(0f, 3.2f * density) }
+            paint.style = Paint.Style.FILL
+            paint.color = Color.argb(95, 55, 35, 28)
+            canvas.drawRoundRect(shadow, radius, radius, paint)
+
+            val shader = android.graphics.LinearGradient(
+                rect.left, rect.top, rect.left, rect.bottom,
+                intArrayOf(
+                    lighten(fillColor, 1.12f),
+                    fillColor,
+                    darken(fillColor, 0.90f)
+                ),
+                floatArrayOf(0f, 0.58f, 1f),
+                android.graphics.Shader.TileMode.CLAMP
+            )
+            paint.shader = shader
+            canvas.drawRoundRect(rect, radius, radius, paint)
+            paint.shader = null
+
+            val clip = Path().apply { addRoundRect(rect, radius, radius, Path.Direction.CW) }
+            val save = canvas.save()
+            canvas.clipPath(clip)
+            // Serat-serat pendek dengan pola deterministik agar tekstur stabil dan ringan.
+            paint.strokeWidth = 0.65f * density
+            paint.strokeCap = Paint.Cap.ROUND
+            for (n in 0 until 150) {
+                val fx = ((n * 37) % 997) / 997f
+                val fy = ((n * 67 + 19) % 991) / 991f
+                val x = rect.left + fx * rect.width()
+                val y = rect.top + fy * rect.height()
+                val len = (1.2f + (n % 5) * 0.42f) * density
+                paint.color = if (n % 3 == 0) Color.argb(52, 255, 255, 255)
+                    else Color.argb(34, 70, 42, 30)
+                canvas.drawLine(x, y, x + len * 0.45f, y - len, paint)
+            }
+            canvas.restoreToCount(save)
+
+            paint.style = Paint.Style.STROKE
+            paint.strokeWidth = 1f * density
+            paint.color = Color.argb(105, 255, 255, 255)
+            canvas.drawRoundRect(RectF(rect).apply { inset(1.2f * density, 1.2f * density) },
+                radius * 0.92f, radius * 0.92f, paint)
+            paint.style = Paint.Style.FILL
+            return
         }
 
         when (shape) {
@@ -1968,6 +2029,18 @@ private class KeyShapeDrawable(
             paint.style = Paint.Style.FILL
         }
     }
+
+    private fun lighten(color: Int, factor: Float): Int = Color.rgb(
+        (Color.red(color) * factor).toInt().coerceAtMost(255),
+        (Color.green(color) * factor).toInt().coerceAtMost(255),
+        (Color.blue(color) * factor).toInt().coerceAtMost(255)
+    )
+
+    private fun darken(color: Int, factor: Float): Int = Color.rgb(
+        (Color.red(color) * factor).toInt().coerceAtLeast(0),
+        (Color.green(color) * factor).toInt().coerceAtLeast(0),
+        (Color.blue(color) * factor).toInt().coerceAtLeast(0)
+    )
 
     private fun polygonPath(points: List<Pair<Float, Float>>): Path {
         return Path().apply {
