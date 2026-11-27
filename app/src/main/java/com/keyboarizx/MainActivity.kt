@@ -26,6 +26,15 @@ class MainActivity : Activity() {
         Color.parseColor("#45B8E8"),
         Color.parseColor("#5BCD97")
     )
+    private val rizTema2 = KeyboardTheme(
+        "Riz Tema 2",
+        Color.parseColor("#252525"),
+        Color.parseColor("#D8D6CF"),
+        Color.parseColor("#050505"),
+        Color.parseColor("#E85D75"),
+        Color.parseColor("#42BCEB"),
+        Color.parseColor("#A78BFA")
+    )
     private val themePrefsKey = "custom_keyboard_themes"
     private val selectedThemeKey = "selected_keyboard_theme"
 
@@ -78,7 +87,7 @@ class MainActivity : Activity() {
     private fun showThemeManager() {
         fun refresh() {
             val themes = loadCustomThemes()
-            val labels = listOf("Default  •  tema bawaan") + themes.map { it.name } + listOf("+ Tambah warna kustom")
+            val labels = listOf("Default  •  tema bawaan", "Riz Tema 2  •  hitam-putih kusam") + themes.map { it.name } + listOf("+ Tambah warna kustom")
             android.app.AlertDialog.Builder(this)
                 .setTitle("Tema Warna Keyboard")
                 .setItems(labels.toTypedArray()) { _, which ->
@@ -87,9 +96,13 @@ class MainActivity : Activity() {
                             applyTheme(defaultTheme)
                             Toast.makeText(this, "Tema Default diterapkan", Toast.LENGTH_SHORT).show()
                         }
+                        which == 1 -> {
+                            applyTheme(rizTema2)
+                            Toast.makeText(this, "Riz Tema 2 diterapkan", Toast.LENGTH_SHORT).show()
+                        }
                         which == labels.lastIndex -> showThemeEditor(null) { refresh() }
                         else -> {
-                            val selected = themes[which - 1]
+                            val selected = themes[which - 2]
                             android.app.AlertDialog.Builder(this)
                                 .setTitle(selected.name)
                                 .setItems(arrayOf("Terapkan", "Edit", "Hapus")) { _, action ->
