@@ -35,6 +35,15 @@ class MainActivity : Activity() {
         Color.parseColor("#42BCEB"),
         Color.parseColor("#A78BFA")
     )
+    private val rizTema3 = KeyboardTheme(
+        "Riz Tema 3",
+        Color.parseColor("#FFE08A"),
+        Color.TRANSPARENT,
+        Color.parseColor("#21152F"),
+        Color.parseColor("#FF6FAE"),
+        Color.parseColor("#63E6BE"),
+        Color.parseColor("#FFC857")
+    )
     private val themePrefsKey = "custom_keyboard_themes"
     private val selectedThemeKey = "selected_keyboard_theme"
 
@@ -87,7 +96,7 @@ class MainActivity : Activity() {
     private fun showThemeManager() {
         fun refresh() {
             val themes = loadCustomThemes()
-            val labels = listOf("Default  •  tema bawaan", "Riz Tema 2  •  hitam-putih kusam") + themes.map { it.name } + listOf("+ Tambah warna kustom")
+            val labels = listOf("Default  •  tema bawaan", "Riz Tema 2  •  hitam-putih kusam", "Riz Tema 3  •  Boat Line") + themes.map { it.name } + listOf("+ Tambah warna kustom")
             android.app.AlertDialog.Builder(this)
                 .setTitle("Tema Warna Keyboard")
                 .setItems(labels.toTypedArray()) { _, which ->
@@ -100,9 +109,13 @@ class MainActivity : Activity() {
                             applyTheme(rizTema2)
                             Toast.makeText(this, "Riz Tema 2 diterapkan", Toast.LENGTH_SHORT).show()
                         }
+                        which == 2 -> {
+                            applyTheme(rizTema3)
+                            Toast.makeText(this, "Riz Tema 3 Boat Line diterapkan", Toast.LENGTH_SHORT).show()
+                        }
                         which == labels.lastIndex -> showThemeEditor(null) { refresh() }
                         else -> {
-                            val selected = themes[which - 2]
+                            val selected = themes[which - 3]
                             android.app.AlertDialog.Builder(this)
                                 .setTitle(selected.name)
                                 .setItems(arrayOf("Terapkan", "Edit", "Hapus")) { _, action ->
