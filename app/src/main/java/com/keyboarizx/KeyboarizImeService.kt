@@ -53,6 +53,8 @@ class KeyboarizImeService : InputMethodService() {
     private var pendingMoveFromCategory: String? = null
     private val prefs by lazy { getSharedPreferences("keyboard_settings", Context.MODE_PRIVATE) }
     private val handler = Handler(Looper.getMainLooper())
+    // Satu titik waktu untuk semua overlay agar animasi tidak reset saat halaman keyboard dibuat ulang.
+    private val animationStartedAt = android.os.SystemClock.uptimeMillis()
     private val clipboardManager by lazy {
         getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
     }
@@ -775,7 +777,7 @@ class KeyboarizImeService : InputMethodService() {
 
     private fun withDragonflyOverlay(keyboard: View) {
         val group = keyboard as? ViewGroup ?: return
-        val view = DragonflyOverlayView(this, currentAnimationRoute())
+        val view = DragonflyOverlayView(this, currentAnimationRoute(), animationStartedAt)
         group.overlay.add(view)
         fun fit() {
             val w = group.width; val h = group.height
@@ -789,7 +791,7 @@ class KeyboarizImeService : InputMethodService() {
 
     private fun withMustangOverlay(keyboard: View) {
         val group = keyboard as? ViewGroup ?: return
-        val car = MustangOverlayView(this, currentAnimationRoute())
+        val car = MustangOverlayView(this, currentAnimationRoute(), animationStartedAt)
         group.overlay.add(car)
         fun fit() {
             val w = group.width; val h = group.height
@@ -803,7 +805,7 @@ class KeyboarizImeService : InputMethodService() {
 
     private fun withMotorcycleOverlay(keyboard: View) {
         val group = keyboard as? ViewGroup ?: return
-        val bike = MotorcycleOverlayView(this, currentAnimationRoute())
+        val bike = MotorcycleOverlayView(this, currentAnimationRoute(), animationStartedAt)
         group.overlay.add(bike)
         fun fit() {
             val w = group.width; val h = group.height
@@ -817,7 +819,7 @@ class KeyboarizImeService : InputMethodService() {
 
     private fun withChickenOverlay(keyboard: View) {
         val group = keyboard as? ViewGroup ?: return
-        val chicken = ChickenOverlayView(this, currentAnimationRoute())
+        val chicken = ChickenOverlayView(this, currentAnimationRoute(), animationStartedAt)
         group.overlay.add(chicken)
         fun fit() {
             val w = group.width; val h = group.height
@@ -831,7 +833,7 @@ class KeyboarizImeService : InputMethodService() {
 
     private fun withAntOverlay(keyboard: View) {
         val group = keyboard as? ViewGroup ?: return
-        val ant = AntOverlayView(this, currentAnimationRoute())
+        val ant = AntOverlayView(this, currentAnimationRoute(), animationStartedAt)
         group.overlay.add(ant)
 
         fun fitOverlay() {
@@ -1371,7 +1373,7 @@ private fun calculateCharacterMotion(width: Int, height: Int, elapsed: Long, rou
     }
 }
 
-private class AntOverlayView(context: Context, private val routeMode: String) : View(context) {
+private class AntOverlayView(context: Context, private val routeMode: String, private val animationStartedAt: Long) : View(context) {
     private val density = resources.displayMetrics.density
     private val bodyPaint = Paint(Paint.ANTI_ALIAS_FLAG)
     private val legPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
@@ -1384,7 +1386,6 @@ private class AntOverlayView(context: Context, private val routeMode: String) : 
         strokeCap = Paint.Cap.ROUND
     }
     private val shape = RectF()
-    private val startedAt = android.os.SystemClock.uptimeMillis()
     private val frame = object : Runnable {
         override fun run() {
             if (!isAttachedToWindow) return
@@ -1415,7 +1416,7 @@ private class AntOverlayView(context: Context, private val routeMode: String) : 
         super.onDraw(canvas)
         if (width <= 0 || height <= 0) return
 
-        val elapsed = ((android.os.SystemClock.uptimeMillis() - startedAt) * characterAnimationSpeed(context)).toLong()
+        val elapsed = ((android.os.SystemClock.uptimeMillis() - animationStartedAt) * characterAnimationSpeed(context)).toLong()
         val motion = calculateCharacterMotion(width, height, elapsed, routeMode)
         val x = motion.x
         val pathY = motion.y
@@ -1492,18 +1493,17 @@ private class AntOverlayView(context: Context, private val routeMode: String) : 
  * For staggered styles the whole row (and therefore its touch targets) is shifted together.
  */
 /** Capung tampak dari atas, mengikuti lintasan zig-zag semut dengan kecepatan sama. */
-private class DragonflyOverlayView(context: Context, private val routeMode: String) : View(context) {
+private class DragonflyOverlayView(context: Context, private val routeMode: String, private val animationStartedAt: Long) : View(context) {
     private val d = resources.displayMetrics.density
     private val fill = Paint(Paint.ANTI_ALIAS_FLAG)
     private val stroke = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.STROKE; strokeCap = Paint.Cap.ROUND }
-    private val start = android.os.SystemClock.uptimeMillis()
     private val frame = object : Runnable { override fun run() { if (!isAttachedToWindow) return; invalidate(); postDelayed(this, 34L) } }
     init { isClickable = false; isFocusable = false; importantForAccessibility = IMPORTANT_FOR_ACCESSIBILITY_NO; setWillNotDraw(false); applyCharacterColor(this, context) }
     override fun onAttachedToWindow() { super.onAttachedToWindow(); removeCallbacks(frame); post(frame) }
     override fun onDetachedFromWindow() { removeCallbacks(frame); super.onDetachedFromWindow() }
     override fun onDraw(canvas: Canvas) {
         super.onDraw(canvas); if (width <= 0 || height <= 0) return
-        val elapsed = ((android.os.SystemClock.uptimeMillis() - start) * characterAnimationSpeed(context)).toLong()
+        val elapsed = ((android.os.SystemClock.uptimeMillis() - animationStartedAt) * characterAnimationSpeed(context)).toLong()
         val motion = calculateCharacterMotion(width, height, elapsed, routeMode)
         val x = motion.x
         val y = motion.y
@@ -1549,14 +1549,13 @@ private class DragonflyOverlayView(context: Context, private val routeMode: Stri
 }
 
 /** Mustang merah tampak atas, melaju di lintasan zig-zag yang sama dengan semut. */
-private class MustangOverlayView(context: Context, private val routeMode: String) : View(context) {
+private class MustangOverlayView(context: Context, private val routeMode: String, private val animationStartedAt: Long) : View(context) {
     private val d = resources.displayMetrics.density
     private val paint = Paint(Paint.ANTI_ALIAS_FLAG)
     private val outline = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         style = Paint.Style.STROKE
         strokeWidth = 0.8f * d
     }
-    private val started = android.os.SystemClock.uptimeMillis()
     private val frame = object : Runnable {
         override fun run() {
             if (!isAttachedToWindow) return
@@ -1587,7 +1586,7 @@ private class MustangOverlayView(context: Context, private val routeMode: String
         super.onDraw(canvas)
         if (width <= 0 || height <= 0) return
 
-        val elapsed = ((android.os.SystemClock.uptimeMillis() - started) * characterAnimationSpeed(context)).toLong()
+        val elapsed = ((android.os.SystemClock.uptimeMillis() - animationStartedAt) * characterAnimationSpeed(context)).toLong()
         val motion = calculateCharacterMotion(width, height, elapsed, routeMode)
         val x = motion.x
         val y = motion.y
@@ -1666,7 +1665,7 @@ private class MustangOverlayView(context: Context, private val routeMode: String
 }
 
 /** Side-view sport motorcycle with a helmeted rider, following the keyboard zig-zag route. */
-private class MotorcycleOverlayView(context: Context, private val routeMode: String) : View(context) {
+private class MotorcycleOverlayView(context: Context, private val routeMode: String, private val animationStartedAt: Long) : View(context) {
     private val d = resources.displayMetrics.density
     private val p = Paint(Paint.ANTI_ALIAS_FLAG).apply { strokeCap = Paint.Cap.ROUND; strokeJoin = Paint.Join.ROUND }
     private val started = android.os.SystemClock.uptimeMillis()
@@ -1815,7 +1814,7 @@ private class MotorcycleOverlayView(context: Context, private val routeMode: Str
 
 
 /** Ayam berjalan tampak samping dengan gerakan kaki bergantian di jalur zig-zag keyboard. */
-private class ChickenOverlayView(context: Context, private val routeMode: String) : View(context) {
+private class ChickenOverlayView(context: Context, private val routeMode: String, private val animationStartedAt: Long) : View(context) {
     private val d = resources.displayMetrics.density
     private val p = Paint(Paint.ANTI_ALIAS_FLAG).apply { strokeCap = Paint.Cap.ROUND; strokeJoin = Paint.Join.ROUND }
     private val started = android.os.SystemClock.uptimeMillis()
