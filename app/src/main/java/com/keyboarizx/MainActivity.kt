@@ -285,11 +285,11 @@ class MainActivity : Activity() {
             textSize = 13f
             setTextColor(Color.LTGRAY)
         })
-        val speedNames = listOf("Lambat", "Sedang (bawaan)", "Cepat")
-        val speedValues = listOf("SLOW", "NORMAL", "FAST")
+        val speedNames = listOf("Sangat lambat (bawaan)", "Lambat", "Sedang", "Cepat")
+        val speedValues = listOf("VERY_SLOW", "SLOW", "NORMAL", "FAST")
         val speedSpinner = Spinner(this).apply {
             adapter = ArrayAdapter(this@MainActivity, android.R.layout.simple_spinner_dropdown_item, speedNames)
-            setSelection(speedValues.indexOf(prefs.getString("keyboard_animation_speed", "NORMAL")).coerceAtLeast(0))
+            setSelection(speedValues.indexOf(prefs.getString("keyboard_animation_speed", "VERY_SLOW")).coerceAtLeast(0))
         }
         root.addView(speedSpinner, LinearLayout.LayoutParams(-1, dp(52)))
         speedSpinner.onItemSelectedListener = object : android.widget.AdapterView.OnItemSelectedListener {
