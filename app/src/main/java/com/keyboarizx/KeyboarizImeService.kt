@@ -1924,36 +1924,63 @@ private class KeyShapeDrawable(
         }
 
         if (shape == "PLUSH") {
-            val shadow = RectF(rect).apply { offset(0f, 3.2f * density) }
+            // Lapisan bayangan dan sisi bawah membuat tombol tampak terangkat.
+            val shadowFar = RectF(rect).apply { offset(0f, 4.2f * density) }
+            val shadowNear = RectF(rect).apply { offset(0f, 2.8f * density) }
             paint.style = Paint.Style.FILL
-            paint.color = Color.argb(95, 55, 35, 28)
-            canvas.drawRoundRect(shadow, radius, radius, paint)
+            paint.color = Color.argb(52, 25, 15, 12)
+            canvas.drawRoundRect(shadowFar, radius, radius, paint)
+            paint.color = Color.argb(105, 42, 25, 20)
+            canvas.drawRoundRect(shadowNear, radius, radius, paint)
 
-            val shader = android.graphics.LinearGradient(
-                rect.left, rect.top, rect.left, rect.bottom,
+            // Dasar gelap yang sedikit terlihat di bawah muka tombol.
+            val side = RectF(rect).apply { offset(0f, 2.7f * density) }
+            paint.color = darken(fillColor, 0.62f)
+            canvas.drawRoundRect(side, radius, radius, paint)
+
+            // Muka tombol dibuat lebih tinggi dan cembung dengan gradasi bertingkat.
+            val face = RectF(rect).apply {
+                inset(0.35f * density, 0.35f * density)
+                bottom -= 2.5f * density
+            }
+            val faceRadius = radius * 0.94f
+            paint.shader = android.graphics.LinearGradient(
+                face.left, face.top, face.left, face.bottom,
                 intArrayOf(
+                    lighten(fillColor, 1.32f),
                     lighten(fillColor, 1.12f),
                     fillColor,
-                    darken(fillColor, 0.90f)
+                    darken(fillColor, 0.78f)
                 ),
-                floatArrayOf(0f, 0.58f, 1f),
+                floatArrayOf(0f, 0.22f, 0.68f, 1f),
                 android.graphics.Shader.TileMode.CLAMP
             )
-            paint.shader = shader
-            canvas.drawRoundRect(rect, radius, radius, paint)
+            canvas.drawRoundRect(face, faceRadius, faceRadius, paint)
             paint.shader = null
 
-            val clip = Path().apply { addRoundRect(rect, radius, radius, Path.Direction.CW) }
+            // Pantulan cahaya lembut di bagian tengah atas untuk ilusi permukaan empuk.
+            paint.shader = android.graphics.RadialGradient(
+                face.centerX(), face.top + face.height() * 0.22f,
+                face.width() * 0.72f,
+                intArrayOf(Color.argb(82, 255, 255, 255), Color.TRANSPARENT),
+                floatArrayOf(0f, 1f),
+                android.graphics.Shader.TileMode.CLAMP
+            )
+            canvas.drawRoundRect(face, faceRadius, faceRadius, paint)
+            paint.shader = null
+
+            // Tekstur serat tetap berada di permukaan atas, tidak menutupi sisi 3D.
+            val clip = Path().apply { addRoundRect(face, faceRadius, faceRadius, Path.Direction.CW) }
             val save = canvas.save()
             canvas.clipPath(clip)
-            // Serat-serat pendek dengan pola deterministik agar tekstur stabil dan ringan.
+            paint.style = Paint.Style.STROKE
             paint.strokeWidth = 0.65f * density
             paint.strokeCap = Paint.Cap.ROUND
             for (n in 0 until 150) {
                 val fx = ((n * 37) % 997) / 997f
                 val fy = ((n * 67 + 19) % 991) / 991f
-                val x = rect.left + fx * rect.width()
-                val y = rect.top + fy * rect.height()
+                val x = face.left + fx * face.width()
+                val y = face.top + fy * face.height()
                 val len = (1.2f + (n % 5) * 0.42f) * density
                 paint.color = if (n % 3 == 0) Color.argb(52, 255, 255, 255)
                     else Color.argb(34, 70, 42, 30)
@@ -1961,12 +1988,17 @@ private class KeyShapeDrawable(
             }
             canvas.restoreToCount(save)
 
+            // Bibir bawah gelap dan garis cahaya di sisi atas/kiri mempertegas bevel.
             paint.style = Paint.Style.STROKE
-            paint.strokeWidth = 1f * density
-            paint.color = Color.argb(105, 255, 255, 255)
-            canvas.drawRoundRect(RectF(rect).apply { inset(1.2f * density, 1.2f * density) },
-                radius * 0.92f, radius * 0.92f, paint)
+            paint.strokeWidth = 1.15f * density
+            paint.color = Color.argb(125, 65, 35, 25)
+            canvas.drawRoundRect(face, faceRadius, faceRadius, paint)
+            paint.strokeWidth = 1.15f * density
+            paint.color = Color.argb(165, 255, 255, 255)
+            val highlight = RectF(face).apply { inset(1.25f * density, 1.25f * density) }
+            canvas.drawArc(highlight, 190f, 155f, false, paint)
             paint.style = Paint.Style.FILL
+            paint.shader = null
             return
         }
 
