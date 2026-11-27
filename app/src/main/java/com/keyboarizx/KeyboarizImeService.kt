@@ -468,8 +468,8 @@ class KeyboarizImeService : InputMethodService() {
 
         var keyboardRowIndex = 0
         fun addRow(keys: List<String>, weights: List<Float> = List(keys.size) { 1f }) {
-            val staggeredRow = keyShape in listOf("LOVE", "HEXAGON", "DIAMOND") && keyboardRowIndex % 2 == 1
-            val invertedLoveRow = keyShape == "LOVE" && staggeredRow
+            val staggeredRow = false
+            val invertedLoveRow = false
             val row = LinearLayout(this).apply {
                 orientation = LinearLayout.HORIZONTAL
                 if (staggeredRow) setPadding(dp(12), 0, 0, 0)
@@ -1031,7 +1031,7 @@ class KeyboarizImeService : InputMethodService() {
         val options = alternateCharacters[baseKey] ?: return null
         val textColor = prefs.getInt("textColor", Color.WHITE)
         val keyColor = prefs.getInt("keyColor", Color.rgb(37, 55, 70))
-        val keyShape = prefs.getString("keyShape", "ROUNDED") ?: "ROUNDED"
+        val keyShape = "PLUSH"
 
         val row = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
@@ -1904,184 +1904,45 @@ private class KeyShapeDrawable(
     override fun draw(canvas: Canvas) {
         val b = bounds
         val inset = 1.5f * density
-        rect.set(
-            b.left + inset,
-            b.top + inset,
-            b.right - inset,
-            b.bottom - inset
-        )
+        rect.set(b.left + inset, b.top + inset, b.right - inset, b.bottom - inset)
         if (rect.width() <= 0f || rect.height() <= 0f) return
 
-        paint.color = fillColor
+        val radius = 13f * density
+        val shadow = RectF(rect).apply { offset(0f, 2.4f * density) }
         paint.style = Paint.Style.FILL
-        val radius = when (shape) {
-            "PILL" -> rect.height() / 2f
-            "SOFT_SQUARE" -> 9f * density
-            "ROUNDED" -> 6f * density
-            "DOUBLE_BORDER" -> 7f * density
-            "PLUSH" -> 13f * density
-            else -> 3f * density
+        paint.shader = null
+        paint.color = Color.argb(70, 25, 15, 12)
+        canvas.drawRoundRect(shadow, radius, radius, paint)
+
+        val face = RectF(rect).apply {
+            inset(0.35f * density, 0.35f * density)
+            bottom -= 2f * density
         }
+        paint.shader = android.graphics.LinearGradient(
+            face.left, face.top, face.left, face.bottom,
+            intArrayOf(
+                Color.rgb((Color.red(fillColor) * 1.16f).toInt().coerceAtMost(255),
+                    (Color.green(fillColor) * 1.16f).toInt().coerceAtMost(255),
+                    (Color.blue(fillColor) * 1.16f).toInt().coerceAtMost(255)),
+                fillColor,
+                Color.rgb((Color.red(fillColor) * 0.82f).toInt().coerceAtLeast(0),
+                    (Color.green(fillColor) * 0.82f).toInt().coerceAtLeast(0),
+                    (Color.blue(fillColor) * 0.82f).toInt().coerceAtLeast(0))
+            ),
+            floatArrayOf(0f, 0.58f, 1f),
+            android.graphics.Shader.TileMode.CLAMP
+        )
+        paint.color = fillColor
+        canvas.drawRoundRect(face, radius, radius, paint)
+        paint.shader = null
 
-        if (shape == "PLUSH") {
-            // Lapisan bayangan dan sisi bawah membuat tombol tampak terangkat.
-            val shadowFar = RectF(rect).apply { offset(0f, 4.2f * density) }
-            val shadowNear = RectF(rect).apply { offset(0f, 2.8f * density) }
-            paint.style = Paint.Style.FILL
-            paint.color = Color.argb(52, 25, 15, 12)
-            canvas.drawRoundRect(shadowFar, radius, radius, paint)
-            paint.color = Color.argb(105, 42, 25, 20)
-            canvas.drawRoundRect(shadowNear, radius, radius, paint)
-
-            // Dasar gelap yang sedikit terlihat di bawah muka tombol.
-            val side = RectF(rect).apply { offset(0f, 2.7f * density) }
-            paint.color = darken(fillColor, 0.62f)
-            canvas.drawRoundRect(side, radius, radius, paint)
-
-            // Muka tombol dibuat lebih tinggi dan cembung dengan gradasi bertingkat.
-            val face = RectF(rect).apply {
-                inset(0.35f * density, 0.35f * density)
-                bottom -= 2.5f * density
-            }
-            val faceRadius = radius * 0.94f
-            paint.shader = android.graphics.LinearGradient(
-                face.left, face.top, face.left, face.bottom,
-                intArrayOf(
-                    lighten(fillColor, 1.32f),
-                    lighten(fillColor, 1.12f),
-                    fillColor,
-                    darken(fillColor, 0.78f)
-                ),
-                floatArrayOf(0f, 0.22f, 0.68f, 1f),
-                android.graphics.Shader.TileMode.CLAMP
-            )
-            canvas.drawRoundRect(face, faceRadius, faceRadius, paint)
-            paint.shader = null
-
-            // Pantulan cahaya lembut di bagian tengah atas untuk ilusi permukaan empuk.
-            paint.shader = android.graphics.RadialGradient(
-                face.centerX(), face.top + face.height() * 0.22f,
-                face.width() * 0.72f,
-                intArrayOf(Color.argb(82, 255, 255, 255), Color.TRANSPARENT),
-                floatArrayOf(0f, 1f),
-                android.graphics.Shader.TileMode.CLAMP
-            )
-            canvas.drawRoundRect(face, faceRadius, faceRadius, paint)
-            paint.shader = null
-
-            // Tekstur serat tetap berada di permukaan atas, tidak menutupi sisi 3D.
-            val clip = Path().apply { addRoundRect(face, faceRadius, faceRadius, Path.Direction.CW) }
-            val save = canvas.save()
-            canvas.clipPath(clip)
-            paint.style = Paint.Style.STROKE
-            paint.strokeWidth = 0.65f * density
-            paint.strokeCap = Paint.Cap.ROUND
-            for (n in 0 until 150) {
-                val fx = ((n * 37) % 997) / 997f
-                val fy = ((n * 67 + 19) % 991) / 991f
-                val x = face.left + fx * face.width()
-                val y = face.top + fy * face.height()
-                val len = (1.2f + (n % 5) * 0.42f) * density
-                paint.color = if (n % 3 == 0) Color.argb(52, 255, 255, 255)
-                    else Color.argb(34, 70, 42, 30)
-                canvas.drawLine(x, y, x + len * 0.45f, y - len, paint)
-            }
-            canvas.restoreToCount(save)
-
-            // Bibir bawah gelap dan garis cahaya di sisi atas/kiri mempertegas bevel.
-            paint.style = Paint.Style.STROKE
-            paint.strokeWidth = 1.15f * density
-            paint.color = Color.argb(125, 65, 35, 25)
-            canvas.drawRoundRect(face, faceRadius, faceRadius, paint)
-            paint.strokeWidth = 1.15f * density
-            paint.color = Color.argb(165, 255, 255, 255)
-            val highlight = RectF(face).apply { inset(1.25f * density, 1.25f * density) }
-            canvas.drawArc(highlight, 190f, 155f, false, paint)
-            paint.style = Paint.Style.FILL
-            paint.shader = null
-            return
-        }
-
-        when (shape) {
-            "CIRCLE", "OVAL" -> canvas.drawOval(rect, paint)
-            "HEXAGON" -> canvas.drawPath(polygonPath(
-                listOf(
-                    0.25f to 0f, 0.75f to 0f, 1f to 0.5f,
-                    0.75f to 1f, 0.25f to 1f, 0f to 0.5f
-                )
-            ), paint)
-            "DIAMOND" -> canvas.drawPath(polygonPath(
-                listOf(0.5f to 0f, 1f to 0.5f, 0.5f to 1f, 0f to 0.5f)
-            ), paint)
-            "LOVE" -> {
-                val path = Path()
-                val w = rect.width()
-                val h = rect.height()
-                path.moveTo(rect.left + w * 0.5f, rect.top + h * 0.96f)
-                path.cubicTo(rect.left + w * 0.39f, rect.top + h * 0.82f,
-                    rect.left + w * 0.02f, rect.top + h * 0.56f,
-                    rect.left + w * 0.02f, rect.top + h * 0.29f)
-                path.cubicTo(rect.left + w * 0.02f, rect.top + h * 0.02f,
-                    rect.left + w * 0.34f, rect.top - h * 0.04f,
-                    rect.left + w * 0.5f, rect.top + h * 0.25f)
-                path.cubicTo(rect.left + w * 0.66f, rect.top - h * 0.04f,
-                    rect.left + w * 0.98f, rect.top + h * 0.02f,
-                    rect.left + w * 0.98f, rect.top + h * 0.29f)
-                path.cubicTo(rect.left + w * 0.98f, rect.top + h * 0.56f,
-                    rect.left + w * 0.61f, rect.top + h * 0.82f,
-                    rect.left + w * 0.5f, rect.top + h * 0.96f)
-                path.close()
-                if (inverted) {
-                    val matrix = android.graphics.Matrix().apply {
-                        setRotate(180f, rect.centerX(), rect.centerY())
-                    }
-                    path.transform(matrix)
-                }
-                canvas.drawPath(path, paint)
-            }
-            "DOUBLE_BORDER" -> {
-                canvas.drawRoundRect(rect, radius, radius, paint)
-                paint.style = Paint.Style.STROKE
-                paint.strokeWidth = 1.2f * density
-                paint.color = Color.argb(190, 255, 255, 255)
-                val inner = RectF(rect).apply { inset(3f * density, 3f * density) }
-                canvas.drawRoundRect(inner, radius * 0.65f, radius * 0.65f, paint)
-            }
-            "PILL", "ROUNDED", "SOFT_SQUARE" -> canvas.drawRoundRect(rect, radius, radius, paint)
-            else -> canvas.drawRoundRect(rect, radius, radius, paint)
-        }
-
-        // Garis luar tipis berwarna; isi tombol tetap memakai warna tema semula.
-        borderColor?.let { color ->
-            paint.style = Paint.Style.STROKE
-            paint.strokeWidth = 1.25f * density
-            paint.color = color
-            val outline = RectF(rect).apply { inset(0.8f * density, 0.8f * density) }
-            canvas.drawRoundRect(outline, radius, radius, paint)
-            paint.style = Paint.Style.FILL
-        }
-    }
-
-    private fun lighten(color: Int, factor: Float): Int = Color.rgb(
-        (Color.red(color) * factor).toInt().coerceAtMost(255),
-        (Color.green(color) * factor).toInt().coerceAtMost(255),
-        (Color.blue(color) * factor).toInt().coerceAtMost(255)
-    )
-
-    private fun darken(color: Int, factor: Float): Int = Color.rgb(
-        (Color.red(color) * factor).toInt().coerceAtLeast(0),
-        (Color.green(color) * factor).toInt().coerceAtLeast(0),
-        (Color.blue(color) * factor).toInt().coerceAtLeast(0)
-    )
-
-    private fun polygonPath(points: List<Pair<Float, Float>>): Path {
-        return Path().apply {
-            points.forEachIndexed { index, point ->
-                val x = rect.left + rect.width() * point.first
-                val y = rect.top + rect.height() * point.second
-                if (index == 0) moveTo(x, y) else lineTo(x, y)
-            }
-            close()        }
+        paint.style = Paint.Style.STROKE
+        paint.strokeWidth = 0.9f * density
+        paint.color = Color.argb(115, 255, 255, 255)
+        val highlight = RectF(face).apply { inset(1.2f * density, 1.2f * density) }
+        canvas.drawArc(highlight, 190f, 145f, false, paint)
+        paint.style = Paint.Style.FILL
+        paint.shader = null
     }
 
     override fun setAlpha(alpha: Int) { paint.alpha = alpha }
