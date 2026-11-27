@@ -200,6 +200,11 @@ class MainActivity : Activity() {
             applyTheme(defaultTheme)
             prefs.edit().putBoolean("keyboard_theme_v2_migrated", true).apply()
         }
+        // Terapkan "Sangat lambat" sebagai default sekali saat pembaruan; pilihan pengguna berikutnya tetap dihormati.
+        if (!prefs.getBoolean("keyboard_speed_v2_migrated", false)) {
+            prefs.edit().putString("keyboard_animation_speed", "VERY_SLOW")
+                .putBoolean("keyboard_speed_v2_migrated", true).apply()
+        }
         window.statusBarColor = dark
         window.navigationBarColor = dark
         window.decorView.setBackgroundColor(dark)
