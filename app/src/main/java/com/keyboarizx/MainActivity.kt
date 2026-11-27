@@ -245,11 +245,11 @@ class MainActivity : Activity() {
         })
         val shapeOptions = listOf(
             "Rounded", "Pill", "Square", "Soft Square", "Circle",
-            "Love", "Hexagon", "Oval", "Diamond", "Double Border"
+            "Love", "Hexagon", "Oval", "Diamond", "Double Border", "Plush 3D (bulu)"
         )
         val shapeValues = listOf(
             "ROUNDED", "PILL", "SQUARE", "SOFT_SQUARE", "CIRCLE",
-            "LOVE", "HEXAGON", "OVAL", "DIAMOND", "DOUBLE_BORDER"
+            "LOVE", "HEXAGON", "OVAL", "DIAMOND", "DOUBLE_BORDER", "PLUSH"
         )
         val shapeSpinner = Spinner(this).apply {
             adapter = ArrayAdapter(this@MainActivity, android.R.layout.simple_spinner_dropdown_item, shapeOptions)
