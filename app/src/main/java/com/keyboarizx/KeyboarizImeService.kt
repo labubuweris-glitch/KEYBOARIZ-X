@@ -1280,7 +1280,8 @@ class KeyboarizImeService : InputMethodService() {
 
 private fun characterAnimationSpeed(context: Context): Float {
     return when (context.getSharedPreferences("keyboard_settings", Context.MODE_PRIVATE)
-        .getString("keyboard_animation_speed", "NORMAL")) {
+        .getString("keyboard_animation_speed", "VERY_SLOW")) {
+        "VERY_SLOW" -> 0.16f
         "SLOW" -> 0.35f
         "FAST" -> 1.55f
         else -> 1.0f
