@@ -84,16 +84,47 @@ class KeyboarizImeService : InputMethodService() {
     override fun onCreateInputView(): View = createKeyboardView()
 
     private fun createKeyboardView(): View {
-        val rizTema2 = prefs.getString("selected_keyboard_theme", "Default") == "Riz Tema 2"
-        val textColor = if (rizTema2) Color.parseColor("#252525") else prefs.getInt("textColor", Color.parseColor("#F1C40F"))
-        val keyColor = if (rizTema2) Color.parseColor("#D8D6CF") else prefs.getInt("keyColor", Color.BLACK)
-        val backgroundColor = if (rizTema2) Color.parseColor("#050505") else prefs.getInt("backgroundColor", Color.BLACK)
+        val selectedTheme = prefs.getString("selected_keyboard_theme", "Default")
+        val rizTema2 = selectedTheme == "Riz Tema 2"
+        val rizTema3 = selectedTheme == "Riz Tema 3"
+        val textColor = when {
+            rizTema2 -> Color.parseColor("#252525")
+            rizTema3 -> Color.parseColor("#FFE08A")
+            else -> prefs.getInt("textColor", Color.parseColor("#F1C40F"))
+        }
+        val keyColor = when {
+            rizTema2 -> Color.parseColor("#D8D6CF")
+            rizTema3 -> Color.TRANSPARENT
+            else -> prefs.getInt("keyColor", Color.BLACK)
+        }
+        val backgroundColor = when {
+            rizTema2 -> Color.parseColor("#050505")
+            rizTema3 -> Color.parseColor("#21152F")
+            else -> prefs.getInt("backgroundColor", Color.BLACK)
+        }
         val keyShape = "PLUSH"
 
-        // Garis aksen khusus Riz Tema 2 diterapkan konsisten di seluruh halaman.
-        val shortcutBorder = if (rizTema2) Color.parseColor("#E85D75") else prefs.getInt("shortcutBorderColor", Color.parseColor("#39C6E8"))
-        val characterBorder = if (rizTema2) Color.parseColor("#42BCEB") else prefs.getInt("characterBorderColor", Color.parseColor("#45B8E8"))
-        val functionBorder = if (rizTema2) Color.parseColor("#A78BFA") else prefs.getInt("functionBorderColor", Color.parseColor("#5BCD97"))
+        // Palet warna dan garis khusus masing-masing tema.
+        val shortcutBorder = when {
+            rizTema2 -> Color.parseColor("#E85D75")
+            rizTema3 -> Color.parseColor("#FF6FAE")
+            else -> prefs.getInt("shortcutBorderColor", Color.parseColor("#39C6E8"))
+        }
+        val characterBorder = when {
+            rizTema2 -> Color.parseColor("#42BCEB")
+            rizTema3 -> Color.parseColor("#63E6BE")
+            else -> prefs.getInt("characterBorderColor", Color.parseColor("#45B8E8"))
+        }
+        val functionBorder = when {
+            rizTema2 -> Color.parseColor("#A78BFA")
+            rizTema3 -> Color.parseColor("#FFC857")
+            else -> prefs.getInt("functionBorderColor", Color.parseColor("#5BCD97"))
+        }
+        val boatPalette = listOf(
+            Color.parseColor("#FF6FAE"), Color.parseColor("#63E6BE"),
+            Color.parseColor("#FFC857"), Color.parseColor("#8CA8FF"),
+            Color.parseColor("#D69CFF"), Color.parseColor("#FF9478")
+        )
 
         // Aksen dibuat dari warna tombol + warna tulisan agar selalu selaras dengan tema aktif.
         val accentColor = blendThemeColors(keyColor, textColor, 0.28f)
@@ -115,9 +146,27 @@ class KeyboarizImeService : InputMethodService() {
                 text = label
                 textSize = 13f
                 val mainTab = label.contains("CLIPBOARD", true) || label == "RIZBOARD" || label == "CUSTOM"
-                val toolFill = if (rizTema2 && mainTab) Color.BLACK else if (rizTema2) Color.rgb(43, 45, 51) else keyColor
-                setTextColor(if (rizTema2) borderColor else textColor)
-                background = KeyShapeDrawable(toolFill, keyShape, resources.displayMetrics.density, borderColor = if (rizTema2) borderColor else borderColor)
+                val tabColor = when {
+                    label.contains("CLIPBOARD", true) -> boatPalette[0]
+                    label == "RIZBOARD" -> boatPalette[1]
+                    label == "CUSTOM" -> boatPalette[2]
+                    label == "1+2" -> boatPalette[3]
+                    else -> borderColor
+                }
+                val toolFill = when {
+                    rizTema3 -> Color.TRANSPARENT
+                    rizTema2 && mainTab -> Color.BLACK
+                    rizTema2 -> Color.rgb(43, 45, 51)
+                    else -> keyColor
+                }
+                setTextColor(if (rizTema3) tabColor else if (rizTema2) borderColor else textColor)
+                background = KeyShapeDrawable(
+                    toolFill, keyShape, resources.displayMetrics.density,
+                    borderColor = if (rizTema3) tabColor else borderColor,
+                    outlineOnly = rizTema3,
+                    boatLine = rizTema3 && mainTab,
+                    inverted = rizTema3 && (label == "RIZBOARD" || label == "1+2")
+                )
                 typeface = Typeface.DEFAULT_BOLD
                 isAllCaps = false
                 minWidth = 0
@@ -482,7 +531,9 @@ class KeyboarizImeService : InputMethodService() {
             keyboardRowIndex++
             keys.forEachIndexed { index, label ->
                 val displayLabel = if (label == "↵") enterKeyLabel() else label
-                val borderColor = if (
+                val borderColor = if (rizTema3) {
+                    boatPalette[(keyboardRowIndex + index + if (label in listOf("SPACE", "↵", "BARIS_BARU")) 2 else 0) % boatPalette.size]
+                } else if (
                     label in listOf("SPACE", "SPACE_ICON", "⇧", "⌫", "↵", "BARIS_BARU", "?123", "ABC", "1+2", "=\\<")
                 ) functionBorder else characterBorder
                 val button = Button(this).apply {
@@ -510,6 +561,7 @@ class KeyboarizImeService : InputMethodService() {
                     val plushOrange = label in listOf("Q", "T", "O", "A", "H") || isAccent || label == "SPACE"
                     val rizFunction = label in listOf("SPACE", "SPACE_ICON", "⇧", "⌫", "↵", "BARIS_BARU", "?123", "ABC", "1+2", "=\\<", ",", ".", "⚙")
                     val plushFill = when {
+                        rizTema3 -> Color.TRANSPARENT
                         rizTema2 && rizFunction -> Color.rgb(43, 45, 51)
                         rizTema2 -> keyColor
                         plushMode && plushFunction -> Color.rgb(38, 32, 34)
@@ -519,6 +571,7 @@ class KeyboarizImeService : InputMethodService() {
                         else -> keyColor
                     }
                     val plushText = when {
+                        rizTema3 -> borderColor
                         rizTema2 && rizFunction -> functionBorder
                         rizTema2 -> textColor
                         plushMode && plushFunction -> Color.WHITE
@@ -532,7 +585,10 @@ class KeyboarizImeService : InputMethodService() {
                         keyShape,
                         resources.displayMetrics.density,
                         invertedLoveRow,
-                        if (rizTema2) borderColor else if (plushMode) null else borderColor
+                        if (rizTema2 || rizTema3) borderColor else if (plushMode) null else borderColor,
+                        outlineOnly = rizTema3,
+                        boatLine = rizTema3 && label in listOf("SPACE", "SPACE_ICON", "↵", "BARIS_BARU", "1+2"),
+                        inverted = rizTema3 && label in listOf("↵", "BARIS_BARU", "1+2")
                     )
                     typeface = Typeface.DEFAULT
                     isAllCaps = false
@@ -2030,7 +2086,9 @@ private class KeyShapeDrawable(
     private val shape: String,
     private val density: Float,
     private val inverted: Boolean = false,
-    private val borderColor: Int? = null
+    private val borderColor: Int? = null,
+    private val outlineOnly: Boolean = false,
+    private val boatLine: Boolean = false
 ) : Drawable() {
     private val paint = Paint(Paint.ANTI_ALIAS_FLAG)
     private val rect = RectF()
@@ -2042,6 +2100,30 @@ private class KeyShapeDrawable(
         if (rect.width() <= 0f || rect.height() <= 0f) return
 
         val radius = 13f * density
+        if (outlineOnly) {
+            paint.shader = null
+            paint.style = Paint.Style.STROKE
+            paint.strokeWidth = 1.65f * density
+            paint.color = borderColor ?: Color.WHITE
+            if (boatLine) {
+                val path = Path()
+                val cx = rect.centerX()
+                if (inverted) {
+                    path.moveTo(rect.left + 3f * density, rect.bottom - rect.height() * 0.28f)
+                    path.quadTo(cx, rect.top - 1f * density, rect.right - 3f * density, rect.bottom - rect.height() * 0.28f)
+                    path.quadTo(cx, rect.bottom + 1f * density, rect.left + 3f * density, rect.bottom - rect.height() * 0.28f)
+                } else {
+                    path.moveTo(rect.left + 3f * density, rect.top + rect.height() * 0.28f)
+                    path.quadTo(cx, rect.bottom + 1f * density, rect.right - 3f * density, rect.top + rect.height() * 0.28f)
+                    path.quadTo(cx, rect.top - 1f * density, rect.left + 3f * density, rect.top + rect.height() * 0.28f)
+                }
+                canvas.drawPath(path, paint)
+            } else {
+                canvas.drawRoundRect(rect, radius, radius, paint)
+            }
+            paint.style = Paint.Style.FILL
+            return
+        }
         val shadow = RectF(rect).apply { offset(0f, 2.4f * density) }
         paint.style = Paint.Style.FILL
         paint.shader = null
