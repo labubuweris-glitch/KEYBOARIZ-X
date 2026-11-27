@@ -238,35 +238,13 @@ class MainActivity : Activity() {
         addAction(root, "Kelola Tema Warna") { showThemeManager() }
 
         section(root, "BENTUK TOMBOL")
+        prefs.edit().putString("keyShape", "PLUSH").apply()
         root.addView(TextView(this).apply {
-            text = "Pilih bentuk tombol. Love, Hexagon, dan Diamond memakai susunan selang-seling."
+            text = "PLUSH 3D (BULU)\nSemua tombol menggunakan satu bentuk Plush 3D. Bentuk lain sudah dihapus."
             textSize = 13f
             setTextColor(Color.LTGRAY)
+            setPadding(0, dp(6), 0, dp(8))
         })
-        val shapeOptions = listOf(
-            "Rounded", "Pill", "Square", "Soft Square", "Circle",
-            "Love", "Hexagon", "Oval", "Diamond", "Double Border", "Plush 3D (bulu)"
-        )
-        val shapeValues = listOf(
-            "ROUNDED", "PILL", "SQUARE", "SOFT_SQUARE", "CIRCLE",
-            "LOVE", "HEXAGON", "OVAL", "DIAMOND", "DOUBLE_BORDER", "PLUSH"
-        )
-        val shapeSpinner = Spinner(this).apply {
-            adapter = ArrayAdapter(this@MainActivity, android.R.layout.simple_spinner_dropdown_item, shapeOptions)
-            setSelection(shapeValues.indexOf(prefs.getString("keyShape", "ROUNDED")).coerceAtLeast(0))
-        }
-        root.addView(shapeSpinner, LinearLayout.LayoutParams(-1, dp(52)))
-        addAction(root, "AKTIFKAN PLUSH 3D (BULU)") {
-            prefs.edit().putString("keyShape", "PLUSH").apply()
-            shapeSpinner.setSelection(shapeValues.indexOf("PLUSH"))
-            Toast.makeText(this, "Bentuk tombol Plush 3D (bulu) diaktifkan. Buka ulang keyboard.", Toast.LENGTH_LONG).show()
-        }
-        shapeSpinner.onItemSelectedListener = object : android.widget.AdapterView.OnItemSelectedListener {
-            override fun onNothingSelected(parent: android.widget.AdapterView<*>?) {}
-            override fun onItemSelected(parent: android.widget.AdapterView<*>?, view: android.view.View?, position: Int, id: Long) {
-                prefs.edit().putString("keyShape", shapeValues[position]).apply()
-            }
-        }
 
 
         section(root, "KARAKTER ANIMASI")
