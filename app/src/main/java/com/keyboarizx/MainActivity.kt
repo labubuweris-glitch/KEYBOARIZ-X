@@ -256,6 +256,11 @@ class MainActivity : Activity() {
             setSelection(shapeValues.indexOf(prefs.getString("keyShape", "ROUNDED")).coerceAtLeast(0))
         }
         root.addView(shapeSpinner, LinearLayout.LayoutParams(-1, dp(52)))
+        addAction(root, "AKTIFKAN PLUSH 3D (BULU)") {
+            prefs.edit().putString("keyShape", "PLUSH").apply()
+            shapeSpinner.setSelection(shapeValues.indexOf("PLUSH"))
+            Toast.makeText(this, "Bentuk tombol Plush 3D (bulu) diaktifkan. Buka ulang keyboard.", Toast.LENGTH_LONG).show()
+        }
         shapeSpinner.onItemSelectedListener = object : android.widget.AdapterView.OnItemSelectedListener {
             override fun onNothingSelected(parent: android.widget.AdapterView<*>?) {}
             override fun onItemSelected(parent: android.widget.AdapterView<*>?, view: android.view.View?, position: Int, id: Long) {
