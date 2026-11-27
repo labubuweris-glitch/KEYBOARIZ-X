@@ -85,7 +85,7 @@ class KeyboarizImeService : InputMethodService() {
         val textColor = prefs.getInt("textColor", Color.parseColor("#F1C40F"))
         val keyColor = prefs.getInt("keyColor", Color.BLACK)
         val backgroundColor = prefs.getInt("backgroundColor", Color.BLACK)
-        val keyShape = prefs.getString("keyShape", "ROUNDED") ?: "ROUNDED"
+        val keyShape = "PLUSH"
 
         // Tiga warna garis yang dapat disimpan terpisah pada setiap tema.
         val shortcutBorder = prefs.getInt("shortcutBorderColor", Color.parseColor("#39C6E8"))
